@@ -585,3 +585,200 @@ async function deleteForumItem(type, id, postId) {
     else location.reload();
   } catch(e) { toast(e.message, 'error'); }
 }
+
+// ─── SCROLL ANIMATIONS ──────────────────────────────────────────────────────
+
+function observeCards() {
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const delay = Array.from(entry.target.parentNode.children).indexOf(entry.target) * 0.04;
+          entry.target.style.animationDelay = delay + 's';
+          entry.target.classList.add('animate-in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px 80px 0px' });
+
+    document.querySelectorAll('.video-card, .live-card, .forum-post-card, .forum-reply-card').forEach(el => {
+      if (!el.classList.contains('animate-in')) {
+        el.style.opacity = '0';
+        observer.observe(el);
+      }
+    });
+  }
+}
+
+// Observe cards after DOM changes
+const origRenderGrid = window.renderGrid;
+const origRenderVideos = window.renderVideos;
+
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(observeCards, 100);
+});
+
+// ─── SKELETON LOADING ────────────────────────────────────────────────────────
+
+function renderSkeletonGrid(count = 8) {
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    html += `
+      <div class="skeleton-card">
+        <div class="skeleton-thumb skeleton"></div>
+        <div class="skeleton-line skeleton"></div>
+        <div class="skeleton-line short skeleton"></div>
+        <div class="skeleton-line shorter skeleton"></div>
+      </div>`;
+  }
+  return html;
+}
+
+function showSkeleton(gridId = 'video-grid', count = 8) {
+  const grid = document.getElementById(gridId);
+  if (grid) grid.innerHTML = renderSkeletonGrid(count);
+}
+
+// ─── PAGE PROGRESS BAR ──────────────────────────────────────────────────────
+
+let nprogressEl = null;
+
+function startProgress() {
+  if (!nprogressEl) {
+    nprogressEl = document.createElement('div');
+    nprogressEl.className = 'nprogress';
+    nprogressEl.innerHTML = '<div class="nprogress-bar" id="nprogress-bar"></div>';
+    document.body.appendChild(nprogressEl);
+  }
+  const bar = document.getElementById('nprogress-bar');
+  if (bar) {
+    bar.style.width = '30%';
+    bar.style.transition = 'width 0.3s ease';
+  }
+}
+
+function endProgress() {
+  const bar = document.getElementById('nprogress-bar');
+  if (bar) {
+    bar.style.width = '100%';
+    setTimeout(() => {
+      bar.style.width = '0';
+      bar.style.transition = 'none';
+      if (nprogressEl) nprogressEl.remove();
+      nprogressEl = null;
+    }, 400);
+  }
+}
+
+// ─── KEYBOARD SHORTCUTS ─────────────────────────────────────────────────────
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+    e.preventDefault();
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.focus();
+  }
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('auth-modal');
+    if (modal && modal.style.display !== 'none') closeModal();
+    const picker = document.getElementById('reaction-picker');
+    if (picker) picker.remove();
+  }
+});
+
+// ─── NAVBAR HAMBURGER (mobile) ──────────────────────────────────────────────
+
+function renderMobileNav() {
+  const nav = document.getElementById('navbar');
+  if (!nav || window.innerWidth > 640) return;
+
+  const existingToggle = nav.querySelector('.nav-toggle');
+  if (existingToggle) return;
+
+  const navLinks = nav.querySelector('.navbar-nav');
+  if (!navLinks) return;
+
+  const toggle = document.createElement('button');
+  toggle.className = 'nav-toggle';
+  toggle.setAttribute('aria-label', 'Menu');
+  toggle.innerHTML = '<span></span><span></span><span></span>';
+
+  toggle.addEventListener('click', () => {
+    toggle.classList.toggle('open');
+    navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
+    if (navLinks.style.display === 'flex') {
+      navLinks.style.flexDirection = 'column';
+      navLinks.style.position = 'absolute';
+      navLinks.style.top = '56px';
+      navLinks.style.left = '0';
+      navLinks.style.right = '0';
+      navLinks.style.background = 'rgba(7,7,10,0.98)';
+      navLinks.style.backdropFilter = 'blur(20px)';
+      navLinks.style.padding = '12px 16px';
+      navLinks.style.borderBottom = '1px solid var(--border)';
+      navLinks.style.gap = '4px';
+      navLinks.style.zIndex = '99';
+    }
+  });
+
+  nav.insertBefore(toggle, navLinks);
+  navLinks.style.display = window.innerWidth > 640 ? 'flex' : 'none';
+}
+
+// Re-run on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const nav = document.getElementById('navbar');
+    if (!nav) return;
+    const toggle = nav.querySelector('.nav-toggle');
+    const navLinks = nav.querySelector('.navbar-nav');
+    if (window.innerWidth > 640) {
+      if (toggle) toggle.remove();
+      if (navLinks) { navLinks.style.display = 'flex'; navLinks.style.flexDirection = ''; navLinks.style.position = ''; navLinks.style.top = ''; navLinks.style.left = ''; navLinks.style.right = ''; navLinks.style.background = ''; navLinks.style.backdropFilter = ''; navLinks.style.padding = ''; navLinks.style.borderBottom = ''; navLinks.style.gap = ''; navLinks.style.zIndex = ''; }
+    } else {
+      if (!nav.querySelector('.nav-toggle')) renderMobileNav();
+    }
+  }, 250);
+});
+
+// Init mobile nav
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.innerWidth <= 640) renderMobileNav();
+});
+
+// ─── SEARCH INPUT SUGGESTIONS ──────────────────────────────────────────────
+
+function enhanceSearch() {
+  const searchInput = document.getElementById('search-input');
+  if (!searchInput) return;
+
+  const wrapper = searchInput.closest('.navbar-search');
+  if (!wrapper) return;
+
+  const existing = wrapper.querySelector('.search-hint');
+  if (!existing) {
+    const hint = document.createElement('span');
+    hint.className = 'search-hint';
+    hint.textContent = '/';
+    hint.style.cssText = `
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--text3); font-size: 11px; font-weight: 600;
+      background: var(--bg4); padding: 1px 7px; border-radius: 4px;
+      pointer-events: none; line-height: 1.6;
+    `;
+    wrapper.appendChild(hint);
+  }
+
+  searchInput.addEventListener('focus', () => {
+    const hint = wrapper.querySelector('.search-hint');
+    if (hint) hint.style.display = 'none';
+  });
+  searchInput.addEventListener('blur', () => {
+    const hint = wrapper.querySelector('.search-hint');
+    if (hint && !searchInput.value) hint.style.display = '';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', enhanceSearch);
