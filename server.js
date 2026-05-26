@@ -77,9 +77,9 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' })); // Protege contra payloads JSON gigantes
 // Serve React built files (SPA)
-app.use(express.static('client/dist'));
-// Fallback: serve index.html for all non-API routes (client-side routing)
-app.use('/uploads', express.static('public/uploads'));
+app.use(express.static(path.join(__dirname, 'client/dist')));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // ─── RATE LIMITING (ANTI BRUTE-FORCE / DDOS) ──────────────────────────────────
 // Limite global: 1000 requisições a cada 15 minutos por IP
@@ -427,17 +427,18 @@ function isOwnerOrMod(resourceUserId, req) {
 }
 
 // ─── UPLOAD CONFIG ────────────────────────────────────────────────────────────
+const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
+
 const combinedStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Separa automaticamente o vídeo da thumbnail em pastas diferentes
-    if (file.fieldname === 'video') cb(null, 'public/uploads/videos');
-    else cb(null, 'public/uploads/thumbnails');
+    if (file.fieldname === 'video') cb(null, path.join(UPLOADS_DIR, 'videos'));
+    else cb(null, path.join(UPLOADS_DIR, 'thumbnails'));
   },
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
 
 const avatarStorage = multer.diskStorage({
-  destination: 'public/uploads/thumbnails',
+  destination: path.join(UPLOADS_DIR, 'thumbnails'),
   filename: (req, file, cb) => cb(null, 'avatar_' + Date.now() + path.extname(file.originalname))
 });
 
@@ -483,7 +484,7 @@ const uploadAvatar = multer({
 });
 
 const forumMediaStorage = multer.diskStorage({
-  destination: 'public/uploads/forum',
+  destination: path.join(UPLOADS_DIR, 'forum'),
   filename: (req, file, cb) => cb(null, 'forum_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + path.extname(file.originalname))
 });
 
@@ -1011,18 +1012,6 @@ app.post('/api/videos/:id/like', auth, actionLimiter, (req, res) => {
   });
 });
 
-app.post('/api/videos/:id/comments', auth, contentLimiter, (req, res) => {
-  // Passa o "aspirador de pó" no conteúdo. Se tiver <script> malicioso, ele anula.
-  const content = xss(req.body.content); 
-  
-  if (!content || content.trim() === '') return res.status(400).json({ error: 'Comentário vazio ou inválido' });
-  
-  db.run('INSERT INTO video_comments (video_id, user_id, content) VALUES (?,?,?)',
-    [req.params.id, req.user.id, content], function(err) {
-      if (err) return res.status(500).json({ error: 'Erro ao salvar comentário' });
-      res.json({ id: this.lastID, content, username: req.user.username });
-    });
-});
 app.post('/api/videos/:id/report', auth, reportLimiter, (req, res) => {
   const { reason } = req.body;
   if (!reason) return res.status(400).json({ error: 'Motivo da denúncia é obrigatório' });
@@ -1734,7 +1723,7 @@ io.on('connection', (socket) => {
 
 // ─── SPA FALLBACK ─────────────────────────────────────────────
 app.get(/^\/(?!api|uploads|socket\.io|hls).*/, (req, res) => {
-  res.sendFile(__dirname + '/client/dist/index.html');
+  res.sendFile(path.join(__dirname, 'client/dist/index.html'));
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────
