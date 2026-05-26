@@ -7,8 +7,6 @@ import VideoCard from '../components/VideoCard';
 import MagneticBtn from '../components/MagneticBtn';
 import { motion } from 'framer-motion';
 
-const ALLOWED_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👀', '💯', '🙄', '🤔', '😈', '🥵'];
-
 export default function Watch() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -16,7 +14,19 @@ export default function Watch() {
   const [video, setVideo] = useState(null);
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [comments, setComments] = useState([]);
   const [comment, setComment] = useState('');
+  const [replyTo, setReplyTo] = useState(null);
+  const [playlists, setPlaylists] = useState([]);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+
+  const loadComments = async () => {
+    try {
+      const c = await api.get(`/api/videos/${id}/comments`);
+      setComments(c || []);
+    } catch (_) {}
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -24,10 +34,14 @@ export default function Watch() {
       try {
         const v = await api.get(`/api/videos/${id}`);
         setVideo(v);
+        await loadComments();
         const cat = v.category ? `&category=${encodeURIComponent(v.category)}` : '';
         const r = await api.get(`/api/videos?limit=12${cat}`);
         const list = r.videos || r;
         setRelated(list.filter((x) => x.id !== v.id).slice(0, 12));
+        if (user) {
+          try { setPlaylists(await api.get('/api/playlists')); } catch (_) {}
+        }
       } catch (e) {
         toast('Erro ao carregar vídeo', 'error');
       } finally {
@@ -62,11 +76,44 @@ export default function Watch() {
     e.preventDefault();
     if (!comment.trim()) return;
     try {
-      await api.post(`/api/videos/${id}/comments`, { content: comment });
+      const body = { content: comment };
+      if (replyTo) body.parent_id = replyTo;
+      await api.post(`/api/videos/${id}/comments`, body);
       setComment('');
-      const v = await api.get(`/api/videos/${id}`);
-      setVideo(v);
+      setReplyTo(null);
+      await loadComments();
       toast('Comentário enviado!', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await api.delete(`/api/comments/${commentId}`);
+      await loadComments();
+      toast('Comentário removido', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const handleAddToPlaylist = async (playlistId) => {
+    try {
+      await api.post(`/api/playlists/${playlistId}/videos`, { video_id: parseInt(id) });
+      toast('Adicionado à playlist!', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) return;
+    try {
+      const pl = await api.post('/api/playlists', { name: newPlaylistName });
+      setPlaylists([...playlists, pl]);
+      setNewPlaylistName('');
+      toast('Playlist criada!', 'success');
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -132,6 +179,11 @@ export default function Watch() {
                 <MagneticBtn className={`action-btn ${video.is_favorite ? 'active' : ''}`} onClick={handleFavorite}>
                   {video.is_favorite ? '❤️' : '🤍'} Favorito
                 </MagneticBtn>
+                {user && (
+                  <MagneticBtn className="action-btn" onClick={() => setShowPlaylistModal(true)}>
+                    📋 Playlist
+                  </MagneticBtn>
+                )}
               </div>
             </div>
 
@@ -157,9 +209,15 @@ export default function Watch() {
           </div>
 
           <div className="comments-section">
-            <h3>Comentários ({video.comments?.length || 0})</h3>
+            <h3>Comentários ({comments.length})</h3>
             {user ? (
               <form className="comment-form" onSubmit={handleComment}>
+                {replyTo && (
+                  <div className="reply-indicator">
+                    Respondendo a um comentário
+                    <button type="button" className="cancel-reply" onClick={() => setReplyTo(null)}>×</button>
+                  </div>
+                )}
                 <textarea
                   placeholder="Escreva um comentário..."
                   value={comment}
@@ -172,7 +230,7 @@ export default function Watch() {
               <p className="comment-login-msg">Faça login para comentar</p>
             )}
             <div className="comments-list">
-              {(video.comments || []).map((c) => (
+              {comments.map((c) => (
                 <div key={c.id} className="comment">
                   <div className="comment-avatar">
                     {c.avatar ? <img src={c.avatar} alt="" /> : <div className="avatar-placeholder-sm">{c.username?.[0]}</div>}
@@ -181,13 +239,66 @@ export default function Watch() {
                     <div className="comment-meta">
                       <Link to={`/profile/${c.username}`} className="comment-author">@{c.username}</Link>
                       <span className="comment-time">{timeAgo(c.created_at)}</span>
+                      {user && (user.id === c.user_id || video.isOwner) && (
+                        <button className="comment-delete" onClick={() => handleDeleteComment(c.id)}>×</button>
+                      )}
                     </div>
                     <p>{c.content}</p>
+                    {user && (
+                      <button className="comment-reply-btn" onClick={() => setReplyTo(c.id)}>Responder</button>
+                    )}
+                    {c.replies?.length > 0 && (
+                      <div className="comment-replies">
+                        {c.replies.map((r) => (
+                          <div key={r.id} className="comment reply">
+                            <div className="comment-avatar">
+                              {r.avatar ? <img src={r.avatar} alt="" /> : <div className="avatar-placeholder-sm">{r.username?.[0]}</div>}
+                            </div>
+                            <div className="comment-body">
+                              <div className="comment-meta">
+                                <Link to={`/profile/${r.username}`} className="comment-author">@{r.username}</Link>
+                                <span className="comment-time">{timeAgo(r.created_at)}</span>
+                                {user && (user.id === r.user_id || video.isOwner) && (
+                                  <button className="comment-delete" onClick={() => handleDeleteComment(r.id)}>×</button>
+                                )}
+                              </div>
+                              <p>{r.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Playlist Modal */}
+          {showPlaylistModal && (
+            <div className="modal-overlay" onClick={() => setShowPlaylistModal(false)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <h3>Adicionar à Playlist</h3>
+                <div className="playlist-list-modal">
+                  {playlists.map((pl) => (
+                    <button key={pl.id} className="playlist-select-btn" onClick={() => handleAddToPlaylist(pl.id)}>
+                      📁 {pl.name} <span className="playlist-count">{pl.video_count} vídeos</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="new-playlist-form">
+                  <input
+                    type="text"
+                    placeholder="Nova playlist..."
+                    value={newPlaylistName}
+                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                  />
+                  <MagneticBtn className="btn btn-primary btn-sm" onClick={handleCreatePlaylist}>Criar</MagneticBtn>
+                </div>
+                <button className="modal-close" onClick={() => setShowPlaylistModal(false)}>Fechar</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <aside className="watch-sidebar">

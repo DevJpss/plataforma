@@ -305,7 +305,51 @@ db.serialize(() => {
     watched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(video_id, user_id)
   )`);
-  // Adicione estes campos na criação da tabela users ou rode um ALTER TABLE
+
+  // Suporte a replies nos comentários
+  db.run(`ALTER TABLE video_comments ADD COLUMN parent_id INTEGER DEFAULT NULL`, () => {});
+
+  db.run(`CREATE TABLE IF NOT EXISTS follows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    follower_id INTEGER NOT NULL,
+    following_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(follower_id, following_id),
+    FOREIGN KEY(follower_id) REFERENCES users(id),
+    FOREIGN KEY(following_id) REFERENCES users(id)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    link TEXT DEFAULT NULL,
+    actor_id INTEGER DEFAULT NULL,
+    read INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS playlists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS playlist_videos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    playlist_id INTEGER NOT NULL,
+    video_id INTEGER NOT NULL,
+    position INTEGER DEFAULT 0,
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(playlist_id, video_id),
+    FOREIGN KEY(playlist_id) REFERENCES playlists(id),
+    FOREIGN KEY(video_id) REFERENCES videos(id)
+  )`);
 
 
   // Seed forum categories
@@ -604,7 +648,11 @@ app.post('/api/login', authLimiter, (req, res) => {
 app.get('/api/me', auth, (req, res) => {
   db.get('SELECT id, username, email, avatar, bio, role, is_private, show_likes, email_verified, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-    res.json(user);
+    db.get('SELECT COUNT(*) as c FROM follows WHERE follower_id = ?', [req.user.id], (err, following) => {
+      db.get('SELECT COUNT(*) as c FROM follows WHERE following_id = ?', [req.user.id], (err, followers) => {
+        res.json({ ...user, following_count: following.c, followers_count: followers.c });
+      });
+    });
   });
 });
 
@@ -648,7 +696,9 @@ app.get('/api/users/:username', optionalAuth, (req, res) => {
   const sqlUser = `
     SELECT id, username, avatar, bio, created_at, is_private, show_likes,
     (SELECT COUNT(*) FROM videos WHERE user_id = users.id) as video_count,
-    (SELECT COUNT(*) FROM forum_posts WHERE user_id = users.id) as post_count
+    (SELECT COUNT(*) FROM forum_posts WHERE user_id = users.id) as post_count,
+    (SELECT COUNT(*) FROM follows WHERE following_id = users.id) as followers_count,
+    (SELECT COUNT(*) FROM follows WHERE follower_id = users.id) as following_count
     FROM users WHERE username = ?`;
 
   db.get(sqlUser, [req.params.username], (err, user) => {
@@ -672,22 +722,37 @@ app.get('/api/users/:username', optionalAuth, (req, res) => {
       ? 'SELECT * FROM videos WHERE user_id = ? ORDER BY created_at DESC'
       : 'SELECT * FROM videos WHERE user_id = ? AND is_private = 0 ORDER BY created_at DESC';
 
-    db.all(videoQuery, [user.id], (err, videos) => {
-      
-      // Busca o histórico de curtidas (se for público ou se for o dono)
-      if (user.show_likes || isOwner) {
-        const sqlLikes = `
-          SELECT v.* FROM video_likes l 
-          JOIN videos v ON l.video_id = v.id 
-          WHERE l.user_id = ? AND l.type = 'like' LIMIT 12`;
-          
-        db.all(sqlLikes, [user.id], (err, likedVideos) => {
-          res.json({ ...user, videos, likedVideos, isOwner });
-        });
-      } else {
-        res.json({ ...user, videos, likedVideos: [], isOwner });
-      }
-    });
+      db.all(videoQuery, [user.id], (err, videos) => {
+        // Follow status
+        let isFollowing = false;
+        const finishProfile = (likedVideos) => {
+          res.json({ ...user, videos, likedVideos, isOwner, isFollowing });
+        };
+        if (req.user && !isOwner) {
+          db.get('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', [req.user.id, user.id], (err, row) => {
+            isFollowing = !!row;
+            if (user.show_likes || isOwner) {
+              const sqlLikes = `
+                SELECT v.* FROM video_likes l 
+                JOIN videos v ON l.video_id = v.id 
+                WHERE l.user_id = ? AND l.type = 'like' LIMIT 12`;
+              db.all(sqlLikes, [user.id], (err, likedVideos) => finishProfile(likedVideos));
+            } else {
+              finishProfile([]);
+            }
+          });
+        } else {
+          if (user.show_likes || isOwner) {
+            const sqlLikes = `
+              SELECT v.* FROM video_likes l 
+              JOIN videos v ON l.video_id = v.id 
+              WHERE l.user_id = ? AND l.type = 'like' LIMIT 12`;
+            db.all(sqlLikes, [user.id], (err, likedVideos) => finishProfile(likedVideos));
+          } else {
+            finishProfile([]);
+          }
+        }
+      });
   });
 });
 
@@ -864,6 +929,7 @@ app.delete('/api/videos/:id', auth, (req, res) => {
       db.run('DELETE FROM video_comments WHERE video_id = ?', [video.id]);
       db.run('DELETE FROM video_favorites WHERE video_id = ?', [video.id]);
       db.run('DELETE FROM video_history WHERE video_id = ?', [video.id]);
+      db.run('DELETE FROM playlist_videos WHERE video_id = ?', [video.id]);
       db.run('DELETE FROM reports WHERE video_id = ?', [video.id]);
       
       // Finalmente, apaga o vídeo em si
@@ -966,6 +1032,185 @@ app.post('/api/videos/:id/report', auth, reportLimiter, (req, res) => {
     ['video', req.params.id, req.user.id, cleanReason], function(err) {
       if (err) return res.status(500).json({ error: 'Erro ao registrar denúncia' });
       res.json({ message: 'Denúncia recebida. Nossa equipe de moderação irá analisar o conteúdo.' });
+    });
+});
+
+// ─── COMENTÁRIOS COM REPLIES ─────────────────────────
+app.post('/api/videos/:id/comments', auth, contentLimiter, (req, res) => {
+  const content = xss(req.body.content);
+  const parent_id = req.body.parent_id ? parseInt(req.body.parent_id) : null;
+  if (!content || content.trim() === '') return res.status(400).json({ error: 'Comentário vazio' });
+
+  db.run('INSERT INTO video_comments (video_id, user_id, content, parent_id) VALUES (?,?,?,?)',
+    [req.params.id, req.user.id, content, parent_id], function(err) {
+      if (err) return res.status(500).json({ error: 'Erro ao salvar comentário' });
+      
+      // Notificar dono do vídeo
+      db.get('SELECT user_id FROM videos WHERE id = ?', [req.params.id], (err, video) => {
+        if (video && video.user_id !== req.user.id) {
+          db.run('INSERT INTO notifications (user_id, type, message, link, actor_id) VALUES (?,?,?,?,?)',
+            [video.user_id, 'comment', `${req.user.username} comentou no seu vídeo`, `/watch/${req.params.id}`, req.user.id]);
+        }
+      });
+
+      res.json({ id: this.lastID, content, username: req.user.username, parent_id, user_id: req.user.id });
+    });
+});
+
+app.get('/api/videos/:id/comments', optionalAuth, (req, res) => {
+  db.all(`SELECT c.*, u.username, u.avatar FROM video_comments c
+          JOIN users u ON c.user_id = u.id
+          WHERE c.video_id = ? ORDER BY c.created_at DESC`, [req.params.id], (err, comments) => {
+    if (err) return res.status(500).json({ error: 'Erro ao buscar comentários' });
+    // Organizar em árvore: comentários pai primeiro, replies aninhadas
+    const tree = [];
+    const map = {};
+    (comments || []).forEach(c => {
+      c.replies = [];
+      map[c.id] = c;
+    });
+    (comments || []).forEach(c => {
+      if (c.parent_id && map[c.parent_id]) {
+        map[c.parent_id].replies.push(c);
+      } else {
+        tree.push(c);
+      }
+    });
+    res.json(tree);
+  });
+});
+
+app.delete('/api/comments/:id', auth, (req, res) => {
+  db.get('SELECT * FROM video_comments WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err, comment) => {
+    if (!comment) return res.status(404).json({ error: 'Comentário não encontrado ou sem permissão' });
+    db.run('DELETE FROM video_comments WHERE id = ? OR parent_id = ?', [req.params.id, req.params.id], () => {
+      res.json({ message: 'Comentário removido' });
+    });
+  });
+});
+
+// ─── FOLLOW / UNFOLLOW ──────────────────────────────
+app.post('/api/users/:id/follow', auth, actionLimiter, (req, res) => {
+  const targetId = parseInt(req.params.id);
+  if (targetId === req.user.id) return res.status(400).json({ error: 'Não pode seguir a si mesmo' });
+
+  db.get('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', [req.user.id, targetId], (err, row) => {
+    if (row) {
+      db.run('DELETE FROM follows WHERE id = ?', [row.id]);
+      res.json({ following: false });
+    } else {
+      db.run('INSERT INTO follows (follower_id, following_id) VALUES (?,?)', [req.user.id, targetId], function() {
+        // Notificar
+        db.run('INSERT INTO notifications (user_id, type, message, link, actor_id) VALUES (?,?,?,?,?)',
+          [targetId, 'follow', `${req.user.username} começou a seguir você`, `/profile/${req.user.username}`, req.user.id]);
+        res.json({ following: true });
+      });
+    }
+  });
+});
+
+app.get('/api/users/:id/follow-status', auth, (req, res) => {
+  const targetId = parseInt(req.params.id);
+  db.get('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', [req.user.id, targetId], (err, row) => {
+    res.json({ isFollowing: !!row });
+  });
+});
+
+// ─── NOTIFICAÇÕES ───────────────────────────────────
+app.get('/api/notifications', auth, (req, res) => {
+  db.all(`SELECT n.*, u.username as actor_username, u.avatar as actor_avatar
+          FROM notifications n LEFT JOIN users u ON n.actor_id = u.id
+          WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 50`,
+    [req.user.id], (err, rows) => {
+      db.get('SELECT COUNT(*) as unread FROM notifications WHERE user_id = ? AND read = 0', [req.user.id], (err, count) => {
+        res.json({ notifications: rows || [], unread: count ? count.unread : 0 });
+      });
+    });
+});
+
+app.post('/api/notifications/:id/read', auth, (req, res) => {
+  db.run('UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], () => {
+    res.json({ message: 'Ok' });
+  });
+});
+
+app.post('/api/notifications/read-all', auth, (req, res) => {
+  db.run('UPDATE notifications SET read = 1 WHERE user_id = ?', [req.user.id], () => {
+    res.json({ message: 'Todas marcadas como lidas' });
+  });
+});
+
+// ─── PLAYLISTS ──────────────────────────────────────
+app.get('/api/playlists', auth, (req, res) => {
+  db.all(`SELECT p.*,
+          (SELECT COUNT(*) FROM playlist_videos WHERE playlist_id = p.id) as video_count
+          FROM playlists p WHERE p.user_id = ? ORDER BY p.created_at DESC`,
+    [req.user.id], (err, rows) => res.json(rows || []));
+});
+
+app.get('/api/playlists/:id', optionalAuth, (req, res) => {
+  db.get(`SELECT p.*, u.username FROM playlists p JOIN users u ON p.user_id = u.id WHERE p.id = ?`,
+    [req.params.id], (err, playlist) => {
+      if (!playlist) return res.status(404).json({ error: 'Playlist não encontrada' });
+      db.all(`SELECT v.*, pv.position, pv.added_at FROM playlist_videos pv
+              JOIN videos v ON pv.video_id = v.id
+              WHERE pv.playlist_id = ? ORDER BY pv.position ASC, pv.added_at DESC`,
+        [req.params.id], (err, videos) => {
+          res.json({ ...playlist, videos: videos || [] });
+        });
+    });
+});
+
+app.post('/api/playlists', auth, (req, res) => {
+  const name = xss(req.body.name);
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nome da playlist obrigatório' });
+  db.run('INSERT INTO playlists (user_id, name) VALUES (?,?)', [req.user.id, name.trim()], function(err) {
+    if (err) return res.status(500).json({ error: 'Erro ao criar playlist' });
+    res.json({ id: this.lastID, name: name.trim() });
+  });
+});
+
+app.put('/api/playlists/:id', auth, (req, res) => {
+  const name = xss(req.body.name);
+  const description = xss(req.body.description || '');
+  db.run('UPDATE playlists SET name = ?, description = ? WHERE id = ? AND user_id = ?',
+    [name, description, req.params.id, req.user.id], function(err) {
+      if (this.changes === 0) return res.status(404).json({ error: 'Playlist não encontrada' });
+      res.json({ message: 'Playlist atualizada' });
+    });
+});
+
+app.delete('/api/playlists/:id', auth, (req, res) => {
+  db.get('SELECT id FROM playlists WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err, pl) => {
+    if (!pl) return res.status(404).json({ error: 'Playlist não encontrada' });
+    db.run('DELETE FROM playlist_videos WHERE playlist_id = ?', [req.params.id]);
+    db.run('DELETE FROM playlists WHERE id = ?', [req.params.id], () => {
+      res.json({ message: 'Playlist removida' });
+    });
+  });
+});
+
+app.post('/api/playlists/:id/videos', auth, (req, res) => {
+  const videoId = parseInt(req.body.video_id);
+  if (!videoId) return res.status(400).json({ error: 'video_id obrigatório' });
+  db.get('SELECT id FROM playlists WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err, pl) => {
+    if (!pl) return res.status(404).json({ error: 'Playlist não encontrada' });
+    db.get('SELECT id FROM playlist_videos WHERE playlist_id = ? AND video_id = ?', [req.params.id, videoId], (err, existing) => {
+      if (existing) return res.json({ message: 'Vídeo já está na playlist' });
+      db.get('SELECT MAX(position) as mp FROM playlist_videos WHERE playlist_id = ?', [req.params.id], (err, max) => {
+        const pos = (max && max.mp !== null) ? max.mp + 1 : 0;
+        db.run('INSERT INTO playlist_videos (playlist_id, video_id, position) VALUES (?,?,?)', [req.params.id, videoId, pos], () => {
+          res.json({ message: 'Vídeo adicionado à playlist' });
+        });
+      });
+    });
+  });
+});
+
+app.delete('/api/playlists/:id/videos/:videoId', auth, (req, res) => {
+  db.run('DELETE FROM playlist_videos WHERE playlist_id = ? AND video_id = ?',
+    [req.params.id, req.params.videoId], () => {
+      res.json({ message: 'Vídeo removido da playlist' });
     });
 });
 

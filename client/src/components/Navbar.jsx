@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { api } from '../utils/api';
+import { api, timeAgo } from '../utils/api';
 import MagneticBtn from './MagneticBtn';
 
 export default function Navbar() {
@@ -12,10 +12,49 @@ export default function Navbar() {
   const [search, setSearch] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef();
+
+  useEffect(() => {
+    if (!user) return;
+    const load = () => {
+      api.get('/api/notifications').then((d) => {
+        setNotifications(d.notifications || []);
+        setUnread(d.unread || 0);
+      }).catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (search.trim()) navigate(`/videos?search=${encodeURIComponent(search.trim())}`);
+  };
+
+  const markRead = async (id, link) => {
+    try { await api.post(`/api/notifications/${id}/read`); } catch (_) {}
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: 1 } : n));
+    setUnread(prev => Math.max(0, prev - 1));
+    if (link) navigate(link);
+    setNotifOpen(false);
+  };
+
+  const markAllRead = async () => {
+    try { await api.post('/api/notifications/read-all'); } catch (_) {}
+    setNotifications(prev => prev.map(n => ({ ...n, read: 1 })));
+    setUnread(0);
   };
 
   return (
@@ -53,6 +92,34 @@ export default function Navbar() {
 
             {user ? (
               <>
+                <div className="nav-notif" ref={notifRef}>
+                  <button className="nav-notif-btn" onClick={() => setNotifOpen(!notifOpen)} aria-label="Notificações">
+                    🔔{unread > 0 && <span className="notif-badge">{unread > 99 ? '99+' : unread}</span>}
+                  </button>
+                  {notifOpen && (
+                    <div className="notif-dropdown">
+                      <div className="notif-header">
+                        <strong>Notificações</strong>
+                        {unread > 0 && <button className="btn btn-ghost btn-xs" onClick={markAllRead}>Ler todas</button>}
+                      </div>
+                      {notifications.length === 0 ? (
+                        <div className="notif-empty">Nenhuma notificação</div>
+                      ) : (
+                        notifications.map((n) => (
+                          <button key={n.id} className={`notif-item ${n.read ? '' : 'notif-unread'}`} onClick={() => markRead(n.id, n.link)}>
+                            <div className="notif-actor">
+                              {n.actor_avatar ? <img src={n.actor_avatar} alt="" /> : <div className="avatar-placeholder-sm">{(n.actor_username || '?')[0]}</div>}
+                            </div>
+                            <div className="notif-body">
+                              <p>{n.message}</p>
+                              <span className="notif-time">{timeAgo(n.created_at)}</span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
                 <Link to="/upload" className="nav-link nav-upload-btn" onClick={() => setMenuOpen(false)}>
                   ＋ Upload
                 </Link>

@@ -2514,4 +2514,212 @@ input:focus, textarea:focus, select:focus {
   text-align: center;
 }
 
+/* ─── NOTIFICAÇÕES ────────────────────────────────── */
+
+.nav-notif { position: relative; }
+
+.nav-notif-btn {
+  background: none; border: none; cursor: pointer; font-size: 20px;
+  padding: 6px; position: relative; line-height: 1;
+}
+
+.notif-badge {
+  position: absolute; top: 0; right: -2px;
+  background: var(--primary); color: #fff;
+  font-size: 10px; font-weight: 700;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; pointer-events: none;
+}
+
+.notif-dropdown {
+  position: absolute; top: 100%; right: 0;
+  width: 340px; max-height: 420px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 100;
+}
+
+.notif-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface);
+}
+
+.notif-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; cursor: pointer;
+  background: none; border: none; color: var(--text1);
+  text-align: left; width: 100%; font-size: 13px;
+}
+
+.notif-item:hover { background: rgba(255,255,255,0.04); }
+
+.notif-unread { border-left: 3px solid var(--primary); }
+
+.notif-actor img, .notif-actor .avatar-placeholder-sm {
+  width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+  flex-shrink: 0;
+}
+
+.notif-body p { margin: 0 0 2px; line-height: 1.4; }
+.notif-time { font-size: 11px; color: var(--text3); }
+
+.notif-empty {
+  padding: 32px 16px; text-align: center; color: var(--text3); font-size: 13px;
+}
+
+/* ─── COMENTÁRIOS COM REPLIES ─────────────────────── */
+
+.comment-reply-btn {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 12px; padding: 4px 0; margin-top: 4px;
+}
+
+.comment-reply-btn:hover { color: var(--primary); }
+
+.comment-delete {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 16px; line-height: 1; padding: 0 4px; margin-left: auto;
+}
+
+.comment-delete:hover { color: var(--primary); }
+
+.reply-indicator {
+  font-size: 12px; color: var(--primary); padding: 4px 0;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.cancel-reply {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0;
+}
+
+.cancel-reply:hover { color: var(--primary); }
+
+.comment-replies {
+  margin-top: 8px; padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.comment-replies .comment { margin-bottom: 8px; }
+
+/* ─── PLAYLIST MODAL ───────────────────────────────── */
+
+.playlist-list-modal {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;
+}
+
+.playlist-select-btn {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; cursor: pointer;
+  color: var(--text1); text-align: left; display: flex;
+  justify-content: space-between; align-items: center;
+  transition: all 0.2s;
+}
+
+.playlist-select-btn:hover {
+  border-color: var(--primary); background: rgba(232,44,95,0.06);
+}
+
+.playlist-count { font-size: 12px; color: var(--text3); }
+
+.new-playlist-form {
+  display: flex; gap: 8px; margin-bottom: 12px;
+}
+
+.new-playlist-form input { flex: 1; }
+
+/* ─── PLAYLIST GRID (perfil) ───────────────────────── */
+
+.playlist-grid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  padding: 20px 0;
+}
+
+.playlist-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  text-decoration: none; color: var(--text1);
+  transition: all 0.3s;
+}
+
+.playlist-card:hover {
+  border-color: var(--primary); transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(232,44,95,0.1);
+}
+
+.playlist-card-icon { font-size: 32px; }
+
+.playlist-card-info { display: flex; flex-direction: column; gap: 2px; }
+.playlist-card-info strong { font-size: 14px; }
+.playlist-card-info span { font-size: 12px; color: var(--text3); }
+
+/* ─── PLAYLIST DETAIL ──────────────────────────────── */
+
+.playlist-detail-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 24px 0; margin-bottom: 16px;
+}
+
+.playlist-detail-icon { font-size: 48px; }
+
+.playlist-detail-header h1 { margin: 0 0 4px; font-size: 22px; }
+
+.playlist-meta { font-size: 13px; color: var(--text3); margin: 0 0 4px; }
+.playlist-meta a { color: var(--primary); text-decoration: none; }
+
+.playlist-desc { font-size: 13px; color: var(--text2); margin: 8px 0 0; line-height: 1.5; }
+
+/* ─── FOLLOW BUTTON ───────────────────────────────── */
+
+.profile-header .btn { margin-top: 12px; }
+
+/* ─── MOBILE RESPONSIVO ────────────────────────────── */
+
+@media (max-width: 768px) {
+  .watch-layout { flex-direction: column; }
+  .watch-sidebar { display: none; }
+  .video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .notif-dropdown {
+    position: fixed; top: 56px; left: 0; right: 0;
+    width: 100%; max-height: 60vh; border-radius: 0;
+  }
+  .profile-header { text-align: center; }
+  .profile-stats {
+    flex-wrap: wrap; justify-content: center; font-size: 12px;
+  }
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+  .navbar-inner {
+    gap: 8px;
+  }
+  .navbar-search {
+    max-width: 140px;
+  }
+  .brand-text { display: none; }
+  .page-header h1 { font-size: 22px; }
+  .settings-form-container { padding: 0 12px; }
+  .nav-user-dropdown {
+    right: -40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .video-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 0 12px;
+  }
+  .navbar-inner { padding: 0 12px; }
+  .playlist-grid { grid-template-columns: 1fr; }
+  .verify-banner { font-size: 11px; padding: 8px 12px; flex-direction: column; gap: 4px; }
+}
+
 
