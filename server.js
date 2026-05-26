@@ -8,12 +8,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const crypto = require('crypto');
 const { Server } = require('socket.io');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 const helmet = require('helmet'); // 🛡️ Segurança HTTP
 const rateLimit = require('express-rate-limit'); // 🚦 Limitador de requisições
 const xss = require('xss'); // 🧹 Filtro anti-injeção de scripts
+const { sendVerificationEmail, sendPasswordResetEmail } = require('./email'); // 📧
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
@@ -157,6 +159,11 @@ db.serialize(() => {
     db.run(`ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN ban_reason TEXT DEFAULT NULL`, () => {});
     db.run(`ALTER TABLE users ADD COLUMN last_login DATETIME DEFAULT NULL`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN verification_token TEXT DEFAULT NULL`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN verification_token_expires DATETIME DEFAULT NULL`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN reset_token TEXT DEFAULT NULL`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN reset_token_expires DATETIME DEFAULT NULL`, () => {});
   });
 
   db.run(`CREATE TABLE IF NOT EXISTS videos (
@@ -464,18 +471,111 @@ app.post('/api/register', authLimiter, async (req, res) => {
 
   try {
     const hash = await bcrypt.hash(password, 10);
-    db.run('INSERT INTO users (username, email, password) VALUES (?,?,?)',
-      [username.toLowerCase(), email.toLowerCase(), hash],
-      function(err) {
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
+    db.run('INSERT INTO users (username, email, password, verification_token, verification_token_expires) VALUES (?,?,?,?,?)',
+      [username.toLowerCase(), email.toLowerCase(), hash, verificationToken, expires],
+      async function(err) {
         if (err) return res.status(400).json({ error: 'Usuário ou email já cadastrado' });
-        // Token agora expira em 7 dias
         const token = jwt.sign({ id: this.lastID, username: username.toLowerCase(), role: 'user' }, SECRET, { expiresIn: '7d' });
-        res.json({ token, user: { id: this.lastID, username: username.toLowerCase(), email, role: 'user' } });
+        sendVerificationEmail(email, verificationToken, username.toLowerCase()).catch((e) => {
+          console.error('❌ Erro ao enviar email de verificação:', e.message);
+        });
+        res.json({
+          token,
+          user: { id: this.lastID, username: username.toLowerCase(), email, role: 'user', email_verified: 0 },
+          email_sent: true,
+        });
       }
     );
   } catch (err) {
     res.status(500).json({ error: 'Erro interno no servidor' });
   }
+});
+
+// ─── EMAIL VERIFICATION ─────────────────────────────────────
+
+app.get('/api/auth/verify', (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Token ausente' });
+
+  db.get('SELECT id, email, username FROM users WHERE verification_token = ? AND verification_token_expires > datetime(\'now\')', [token], (err, user) => {
+    if (err) return res.status(500).json({ error: 'Erro no banco de dados' });
+    if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
+
+    db.run('UPDATE users SET email_verified = 1, verification_token = NULL, verification_token_expires = NULL WHERE id = ?', [user.id], (err2) => {
+      if (err2) return res.status(500).json({ error: 'Erro ao verificar email' });
+      res.json({ success: true, message: 'Email verificado com sucesso!' });
+    });
+  });
+});
+
+app.post('/api/auth/resend-verification', authLimiter, (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email obrigatório' });
+
+  db.get('SELECT id, username, email_verified FROM users WHERE email = ?', [email.toLowerCase()], async (err, user) => {
+    if (err) return res.status(500).json({ error: 'Erro no banco de dados' });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (user.email_verified) return res.status(400).json({ error: 'Email já verificado' });
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
+    db.run('UPDATE users SET verification_token = ?, verification_token_expires = ? WHERE id = ?',
+      [verificationToken, expires, user.id], async (err2) => {
+        if (err2) return res.status(500).json({ error: 'Erro ao gerar token' });
+        sendVerificationEmail(email, verificationToken, user.username).catch((e) => {
+          console.error('❌ Erro ao reenviar email:', e.message);
+        });
+        res.json({ success: true, message: 'Email de verificação reenviado!' });
+      }
+    );
+  });
+});
+
+// ─── PASSWORD RESET ─────────────────────────────────────────
+
+app.post('/api/auth/forgot-password', authLimiter, (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email obrigatório' });
+
+  db.get('SELECT id, username FROM users WHERE email = ?', [email.toLowerCase()], async (err, user) => {
+    if (err) return res.status(500).json({ error: 'Erro no banco de dados' });
+    if (!user) return res.json({ success: true, message: 'Se o email existir, você receberá um link de redefinição.' });
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0];
+    db.run('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?',
+      [resetToken, expires, user.id], async (err2) => {
+        if (err2) return res.status(500).json({ error: 'Erro ao gerar token' });
+        sendPasswordResetEmail(email, resetToken, user.username).catch((e) => {
+          console.error('❌ Erro ao enviar email de redefinição:', e.message);
+        });
+        res.json({ success: true, message: 'Se o email existir, você receberá um link de redefinição.' });
+      }
+    );
+  });
+});
+
+app.post('/api/auth/reset-password', (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token e nova senha obrigatórios' });
+  if (password.length < 8) return res.status(400).json({ error: 'A senha deve ter no mínimo 8 caracteres' });
+
+  db.get('SELECT id FROM users WHERE reset_token = ? AND reset_token_expires > datetime(\'now\')', [token], async (err, user) => {
+    if (err) return res.status(500).json({ error: 'Erro no banco de dados' });
+    if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
+
+    try {
+      const hash = await bcrypt.hash(password, 10);
+      db.run('UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?', [hash, user.id], (err2) => {
+        if (err2) return res.status(500).json({ error: 'Erro ao redefinir senha' });
+        res.json({ success: true, message: 'Senha redefinida com sucesso!' });
+      });
+    } catch (e) {
+      res.status(500).json({ error: 'Erro interno' });
+    }
+  });
 });
 
 app.post('/api/login', authLimiter, (req, res) => {
@@ -496,12 +596,13 @@ app.post('/api/login', authLimiter, (req, res) => {
     db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
     
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar, role: user.role } });
+    const email_verified = user.email_verified === 1;
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar, role: user.role, email_verified } });
   });
 });
 
 app.get('/api/me', auth, (req, res) => {
-  db.get('SELECT id, username, email, avatar, bio, role, is_private, show_likes, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
+  db.get('SELECT id, username, email, avatar, bio, role, is_private, show_likes, email_verified, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
     res.json(user);
   });

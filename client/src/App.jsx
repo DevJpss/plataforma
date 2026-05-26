@@ -15,6 +15,9 @@ import Settings from './pages/Settings';
 import Lives from './pages/Lives';
 import Terms, { Privacy, DMCA } from './pages/Terms';
 import NotFound from './pages/NotFound';
+import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const pageVariants = {
   initial: { opacity: 0, y: 24, scale: 0.98 },
@@ -48,6 +51,9 @@ function AnimatedRoutes() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/dmca" element={<DMCA />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </motion.main>

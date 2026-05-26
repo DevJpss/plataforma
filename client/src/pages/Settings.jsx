@@ -14,6 +14,7 @@ export default function Settings() {
   const [showLikes, setShowLikes] = useState(user?.show_likes !== 0);
   const [avatarFile, setAvatarFile] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState(false);
 
   if (!user) {
     return (
@@ -55,6 +56,11 @@ export default function Settings() {
       <motion.div className="settings-form-container" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
         <form className="settings-form" onSubmit={handleSave}>
           <div className="form-group">
+            <label>Email</label>
+            <input type="email" value={user.email} disabled style={{ opacity: 0.6 }} />
+          </div>
+
+          <div className="form-group">
             <label>Avatar</label>
             <div className="avatar-upload">
               {user.avatar && <img src={user.avatar} alt="" className="avatar-preview" />}
@@ -80,6 +86,31 @@ export default function Settings() {
               Mostrar vídeos curtidos no perfil
             </label>
           </div>
+
+          {user.email_verified === 0 && (
+            <div style={{ textAlign: 'center', padding: '16px 0', borderTop: '1px solid var(--border)', marginTop: 16 }}>
+              <p style={{ color: 'var(--text3)', fontSize: 13, marginBottom: 8 }}>
+                📧 Email não verificado. Clique no link que enviamos para <strong>{user.email}</strong>.
+              </p>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={resending}
+                onClick={async () => {
+                  setResending(true);
+                  try {
+                    await api.post('/api/auth/resend-verification', { email: user.email });
+                    toast('Email de verificação reenviado!', 'success');
+                  } catch (e) {
+                    toast(e.message, 'error');
+                  } finally {
+                    setResending(false);
+                  }
+                }}
+              >
+                {resending ? 'Enviando...' : 'Reenviar Email'}
+              </button>
+            </div>
+          )}
 
           <MagneticBtn className="btn btn-primary btn-full" disabled={saving}>
             {saving ? 'Salvando...' : 'Salvar'}
