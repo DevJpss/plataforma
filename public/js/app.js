@@ -3,21 +3,18 @@
 function checkAgeGate() {
   if (!localStorage.getItem('age_verified')) {
     const gate = document.createElement('div');
-    gate.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-      background: rgba(0,0,0,0.95); z-index: 9999; display: flex; 
-      align-items: center; justify-content: center; backdrop-filter: blur(10px);
-    `;
+    gate.className = 'age-gate-overlay';
     gate.innerHTML = `
-      <div style="background: var(--bg2); padding: 40px; border-radius: 20px; text-align: center; max-width: 400px; border: 1px solid var(--border);">
-        <h1 style="color: var(--accent); margin-bottom: 15px; font-size: 32px;">🔞 Aviso 18+</h1>
-        <p style="color: var(--text2); margin-bottom: 25px; line-height: 1.5;">
-          Este site contém conteúdo adulto explícito. Você deve ter 18 anos ou mais para entrar.<br><br>
+      <div style="background: var(--bg2); padding: 44px; border-radius: var(--radius-xl); text-align: center; max-width: 420px; border: 1px solid var(--border); box-shadow: var(--shadow);">
+        <div style="font-size: 48px; margin-bottom: 16px;">🔞</div>
+        <h2 style="font-family: var(--font-display); font-size: 28px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px;">Aviso 18+</h2>
+        <p style="color: var(--text2); margin-bottom: 28px; line-height: 1.6; font-size: 14px;">
+          Este site contém conteúdo adulto explícito. Você deve ter <strong style="color: var(--text);">18 anos ou mais</strong> para entrar.<br><br>
           Ao clicar em "Eu tenho 18+", você concorda com nossos Termos de Uso e Política de Privacidade.
         </p>
         <div style="display: flex; gap: 10px; flex-direction: column;">
-          <button class="btn btn-primary" onclick="acceptAgeGate(this)" style="padding: 15px; font-size: 16px;">Eu tenho 18+ e concordo</button>
-          <button class="btn btn-ghost" onclick="window.location.href='https://google.com'" style="padding: 15px;">Sair</button>
+          <button class="btn btn-primary" onclick="acceptAgeGate(this)" style="padding: 14px; font-size: 15px;">Eu tenho 18+ e concordo</button>
+          <button class="btn btn-ghost" onclick="window.location.href='https://google.com'" style="padding: 14px; font-size: 15px;">Sair</button>
         </div>
       </div>
     `;
