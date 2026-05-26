@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Assistindo - AdultHub.com</title>
+  <title>Assistindo - AdultHub</title>
   <link rel="stylesheet" href="/css/style.css">
   
   <!-- Bibliotecas Externas -->
@@ -38,7 +38,7 @@
       
        try {
         videoData = await API.get('/api/videos/' + id);
-        document.title = videoData.title + ' - AdultHub.com';
+        document.title = videoData.title + ' - AdultHub';
         renderPlayer();
         loadRelated();
         setTimeout(injectAllAds, 100);

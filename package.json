@@ -1,7 +1,7 @@
 {
-  "name": "adulthub",
+  "name": "plataforma-adulta",
   "version": "1.0.0",
-  "description": "AdultHub.com - Conteúdo adulto com vídeos, fórum e lives",
+  "description": "Plataforma de conteúdo adulto com vídeos, fórum e lives",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
