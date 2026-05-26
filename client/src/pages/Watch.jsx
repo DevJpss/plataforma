@@ -163,7 +163,7 @@ export default function Watch() {
             {video.filename ? (
               <video ref={videoRef} controls poster={video.thumbnail} className="video-player" autoPlay>
                 {(!video.has_hls || !Hls.isSupported()) && (
-                  <source src={`/api/stream/${video.filename.replace('/uploads/videos/', '')}`} type="video/mp4" />
+                  <source src={video.filename} type="video/mp4" />
                 )}
               </video>
             ) : (
