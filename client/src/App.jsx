@@ -1,8 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import CustomCursor from './components/CustomCursor';
 import Home from './pages/Home';
 import Videos from './pages/Videos';
 import Watch from './pages/Watch';
@@ -14,10 +16,36 @@ import Settings from './pages/Settings';
 import Lives from './pages/Lives';
 import Terms, { Privacy, DMCA } from './pages/Terms';
 
-function ScrollToTop() {
-  const { pathname } = window.location;
-  if (pathname) window.scrollTo(0, 0);
-  return null;
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.main
+        key={location.pathname}
+        className="main-content"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      >
+        <Routes location={location}>
+          <Route path="/" element={<Home />} />
+          <Route path="/videos" element={<Videos />} />
+          <Route path="/watch/:id" element={<Watch />} />
+          <Route path="/upload" element={<Upload />} />
+          <Route path="/forum" element={<Forum />} />
+          <Route path="/forum/:id" element={<ForumPost />} />
+          <Route path="/profile/:username" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/lives" element={<Lives />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/dmca" element={<DMCA />} />
+        </Routes>
+      </motion.main>
+    </AnimatePresence>
+  );
 }
 
 export default function App() {
@@ -26,24 +54,9 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <div className="app">
-            <ScrollToTop />
+            <CustomCursor />
             <Navbar />
-            <main className="main-content">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/videos" element={<Videos />} />
-                <Route path="/watch/:id" element={<Watch />} />
-                <Route path="/upload" element={<Upload />} />
-                <Route path="/forum" element={<Forum />} />
-                <Route path="/forum/:id" element={<ForumPost />} />
-                <Route path="/profile/:username" element={<Profile />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/lives" element={<Lives />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/dmca" element={<DMCA />} />
-              </Routes>
-            </main>
+            <AnimatedRoutes />
             <Footer />
           </div>
         </ToastProvider>
