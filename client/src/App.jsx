@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import CustomCursor from './components/CustomCursor';
 import Home from './pages/Home';
 import Videos from './pages/Videos';
 import Watch from './pages/Watch';
@@ -54,7 +53,6 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <div className="app">
-            <CustomCursor />
             <Navbar />
             <AnimatedRoutes />
             <Footer />
