@@ -121,6 +121,7 @@ input:focus, textarea:focus, select:focus {
   padding: 0 20px;
   position: relative;
   z-index: 1;
+  overflow-x: clip;
 }
 
 .page {
@@ -1792,6 +1793,8 @@ input:focus, textarea:focus, select:focus {
 
 .hero {
   position: relative;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
   padding: 100px 0 60px;
   text-align: center;
   overflow: hidden;
@@ -1872,8 +1875,8 @@ input:focus, textarea:focus, select:focus {
 .geo-diamond {
   width: 60px;
   height: 60px;
-  top: 15%;
-  left: 10%;
+  top: 12%;
+  left: 6%;
   border: 1.5px solid var(--primary);
   transform: rotate(45deg);
 }
@@ -1881,8 +1884,8 @@ input:focus, textarea:focus, select:focus {
 .geo-circle {
   width: 80px;
   height: 80px;
-  top: 60%;
-  right: 12%;
+  top: 65%;
+  right: 8%;
   border: 1.5px solid var(--accent2);
   border-radius: 50%;
 }
@@ -1894,18 +1897,44 @@ input:focus, textarea:focus, select:focus {
   border-right: 30px solid transparent;
   border-bottom: 52px solid var(--primary);
   opacity: 0.08;
-  top: 30%;
-  right: 20%;
+  top: 25%;
+  right: 15%;
 }
 
 .geo-dot-grid {
-  width: 80px;
-  height: 80px;
-  bottom: 20%;
-  left: 8%;
+  width: 100px;
+  height: 100px;
+  bottom: 15%;
+  left: 4%;
   background-image: radial-gradient(circle, var(--primary) 1.5px, transparent 1.5px);
   background-size: 12px 12px;
   opacity: 0.1;
+}
+
+.geo-ring {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  width: 200px;
+  height: 200px;
+  border: 1px solid var(--primary);
+  border-radius: 50%;
+  opacity: 0.06;
+  top: -10%;
+  right: -4%;
+}
+
+.geo-ring-2 {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  width: 150px;
+  height: 150px;
+  border: 1px solid var(--accent2);
+  border-radius: 50%;
+  opacity: 0.05;
+  bottom: -5%;
+  left: -3%;
 }
 
 /* ─── HERO BADGE ────────────────────────────────── */

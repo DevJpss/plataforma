@@ -66,6 +66,16 @@ export default function Home() {
           animate={{ y: [0, -10, 0] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         />
+        <motion.div
+          className="geo-ring"
+          animate={{ rotate: 360, scale: [1, 1.05, 1] }}
+          transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+        />
+        <motion.div
+          className="geo-ring-2"
+          animate={{ rotate: -360, scale: [1, 1.08, 1] }}
+          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+        />
 
         <motion.div className="hero-glow" style={{ y: heroY }} />
         <motion.div className="hero-glow-2" />
