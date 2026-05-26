@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { api, timeAgo } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -80,7 +81,7 @@ export default function Lives() {
       ) : (
         <motion.div className="video-grid" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
           {lives.map((l) => (
-            <div key={l.id} className="live-card">
+            <Link key={l.id} to={`/profile/${l.username}`} className="live-card">
               <div className="live-thumb">
                 <div className="live-badge">🔴 AO VIVO</div>
                 {l.thumbnail ? <img src={l.thumbnail} alt="" /> : <div className="no-thumb">📺</div>}
@@ -94,7 +95,7 @@ export default function Lives() {
                   <span>{timeAgo(l.created_at)}</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </motion.div>
       )}

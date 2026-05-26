@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 export default function Footer() {
   return (
     <footer className="footer">
+      <div className="footer-glow" />
+      <div className="footer-shape footer-shape-1" />
+      <div className="footer-shape footer-shape-2" />
       <div className="footer-inner">
         <div className="footer-brand">
           <span className="brand-icon">◆</span>
