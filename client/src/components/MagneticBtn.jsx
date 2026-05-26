@@ -37,10 +37,25 @@ export default function MagneticBtn({ children, to, href, className = '', ...pro
     );
   }
 
+  if (href) {
+    return (
+      <a
+        ref={ref}
+        href={href}
+        className={className}
+        style={style}
+        onMouseMove={handleMouse}
+        onMouseLeave={handleLeave}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  }
+
   return (
-    <a
+    <button
       ref={ref}
-      href={href}
       className={className}
       style={style}
       onMouseMove={handleMouse}
@@ -48,6 +63,6 @@ export default function MagneticBtn({ children, to, href, className = '', ...pro
       {...props}
     >
       {children}
-    </a>
+    </button>
   );
 }
