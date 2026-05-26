@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fórum - AdultHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+  <div id="ad-header" style="margin:0 auto;max-width:1200px;padding:8px 16px;text-align:center"></div>
+  <div class="container">
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1>Fórum</h1>
+        <p>Discuta, compartilhe e conecte-se com a comunidade</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="position:relative;flex:1;min-width:200px">
+          <input type="text" id="forum-search" placeholder="Buscar tópicos..." style="margin:0;padding-right:40px">
+          <button class="btn btn-ghost btn-sm" onclick="doSearch()" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);padding:4px 10px;border:none;background:transparent">🔍</button>
+        </div>
+        <button class="btn btn-primary" onclick="showNewPostModal()">+ Novo tópico</button>
+      </div>
+    </div>
+
+    <div class="forum-layout">
+      <!-- Sidebar - Categories -->
+      <div>
+        <div class="forum-sidebar">
+          <div class="forum-cat-item active" data-cat="0" onclick="selectCategory(0, this)">
+            <div class="forum-cat-icon">📋</div>
+            <div>
+              <div class="forum-cat-name">Todos</div>
+              <div class="forum-cat-count">todos os posts</div>
+            </div>
+          </div>
+          <div id="categories-list"></div>
+        </div>
+      </div>
+
+      <!-- Main - Posts -->
+      <div>
+        <div id="posts-list">
+          <div style="text-align:center;padding:60px;color:var(--text3)">Carregando...</div>
+        </div>
+        <div style="text-align:center;margin-top:20px">
+          <button class="btn btn-ghost" id="load-more-posts" style="display:none" onclick="loadMorePosts()">Carregar mais</button>
+         </div>
+      </div>
+    </div>
+  </div>
+  <div id="ad-footer" style="margin:16px auto;max-width:1200px;padding:8px 16px;text-align:center"></div>
+
+  <input type="file" id="np-image-input" accept="image/*" style="display:none" onchange="uploadForumImage(this, 'np-content')">
+
+  <!-- New Post Modal -->
+  <div class="modal-overlay" id="new-post-modal" style="display:none">
+    <div class="modal" style="max-width:640px;position:relative">
+      <button class="modal-close" onclick="document.getElementById('new-post-modal').style.display='none'">×</button>
+      <h2>Novo Tópico</h2>
+      <div id="np-error" class="modal-error" style="display:none"></div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="np-category"></select>
+      </div>
+      <div class="form-group">
+        <label>Título</label>
+        <input type="text" id="np-title" placeholder="Título do tópico" maxlength="200">
+      </div>
+      <div class="form-group">
+        <label>Conteúdo</label>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="insertFormat('np-content','**','**','negrito')" title="Negrito">B</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="insertFormat('np-content','*','*','itálico')" title="Itálico">I</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="insertLink('np-content')" title="Link">🔗 Link</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('np-image-input').click()" title="Inserir imagem">🖼️ Imagem</button>
+        </div>
+        <textarea id="np-content" style="min-height:220px;font-family:monospace;font-size:13px;line-height:1.6" placeholder="Escreva aqui...
+
+Dicas de formatação:
+**negrito**  *itálico*
+[texto do link](https://exemplo.com)
+![descrição da imagem](url_da_imagem)
+
+Links e URLs são automaticamente detectados."></textarea>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
+        Dicas: **negrito** *itálico* [texto](url) ![img](url)
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="document.getElementById('new-post-modal').style.display='none'">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitPost()">Publicar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let categories = [];
+    let selectedCatId = 0;
+    let postPage = 1;
+    let allPosts = [];
+    let currentSearch = '';
+
+       document.addEventListener('DOMContentLoaded', async () => {
+      renderNavbar('forum');
+      await loadCategories();
+      
+      const params = getParams();
+      if (params.search) {
+        currentSearch = params.search;
+        document.getElementById('forum-search').value = currentSearch;
+      }
+      
+      loadPosts();
+      setTimeout(injectAllAds, 100);
+      
+      document.getElementById('forum-search').addEventListener('keypress', e => {
+        if (e.key === 'Enter') doSearch();
+      });
+    });
+
+    function doSearch() {
+      const val = document.getElementById('forum-search').value.trim();
+      currentSearch = val;
+      postPage = 1;
+      if (val) {
+        window.history.replaceState({}, '', '/forum.html?search=' + encodeURIComponent(val));
+      } else {
+        window.history.replaceState({}, '', '/forum.html');
+      }
+      loadPosts();
+    }
+
+    async function loadCategories() {
+      categories = await API.get('/api/forum/categories');
+      const list = document.getElementById('categories-list');
+      list.innerHTML = categories.map(c => `
+        <div class="forum-cat-item" data-cat="${c.id}" onclick="selectCategory(${c.id}, this)">
+          <div class="forum-cat-icon">${c.icon}</div>
+          <div>
+            <div class="forum-cat-name">${c.name}</div>
+            <div class="forum-cat-count">${c.post_count} posts</div>
+          </div>
+        </div>
+      `).join('');
+
+      const sel = document.getElementById('np-category');
+      if (sel) sel.innerHTML = categories.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    }
+
+    function selectCategory(id, el) {
+      selectedCatId = id;
+      postPage = 1;
+      document.querySelectorAll('.forum-cat-item').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      loadPosts();
+    }
+
+    async function loadPosts() {
+      let url = '/api/forum/posts?limit=20&page=' + postPage;
+      if (selectedCatId) url += '&category_id=' + selectedCatId;
+      if (currentSearch) url += '&search=' + encodeURIComponent(currentSearch);
+      try {
+        const posts = await API.get(url);
+        if (postPage === 1) allPosts = posts;
+        else allPosts = [...allPosts, ...posts];
+        renderPosts();
+        document.getElementById('load-more-posts').style.display = posts.length === 20 ? 'inline-flex' : 'none';
+      } catch(e) {
+        document.getElementById('posts-list').innerHTML = `<div style="color:var(--text3);padding:40px;text-align:center">Erro ao carregar posts</div>`;
+      }
+    }
+
+    function loadMorePosts() { postPage++; loadPosts(); }
+
+    function renderPosts() {
+      const el = document.getElementById('posts-list');
+      if (!allPosts.length) {
+        el.innerHTML = `
+          <div class="empty-state">
+            <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            <h3>Nenhum tópico aqui ainda</h3>
+            <p>${currentSearch ? 'Nenhum resultado para: "' + currentSearch + '"' : 'Seja o primeiro a criar um tópico!'}</p>
+          </div>
+        `;
+        return;
+      }
+      el.innerHTML = allPosts.map(p => `
+        <div class="forum-post-card" onclick="window.location.href='/forum-post.html?id=${p.id}'">
+          ${p.pinned ? '<div style="font-size:12px;color:var(--warning);font-weight:700;margin-bottom:6px">📌 Fixado</div>' : ''}
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">${p.category_name}</div>
+          <div class="forum-post-title">${p.title}</div>
+          <div class="forum-post-meta">
+            <span class="author">@${p.username}</span>
+            <span>·</span>
+            <span>${timeAgo(p.created_at)}</span>
+          </div>
+          <div class="forum-post-stats">
+            <div class="forum-stat">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              ${formatViews(p.views)} views
+            </div>
+            <div class="forum-stat">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              ${p.reply_count} respostas
+            </div>
+            ${p.reactions_count > 0 ? `
+            <div class="forum-stat" style="color:var(--accent)">
+              💬 ${p.reactions_count} reações
+            </div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showNewPostModal() {
+      if (!API.isLoggedIn()) return showModal('login');
+      document.getElementById('new-post-modal').style.display = 'flex';
+      if (selectedCatId) {
+        const sel = document.getElementById('np-category');
+        if (sel) sel.value = selectedCatId;
+      }
+    }
+
+    async function submitPost() {
+      const category_id = document.getElementById('np-category').value;
+      const title = document.getElementById('np-title').value.trim();
+      const content = document.getElementById('np-content').value.trim();
+      const errEl = document.getElementById('np-error');
+      errEl.style.display = 'none';
+      if (!title || !content) { errEl.textContent = 'Preencha título e conteúdo'; errEl.style.display = 'block'; return; }
+      try {
+        const data = await API.post('/api/forum/posts', { category_id, title, content });
+        document.getElementById('new-post-modal').style.display = 'none';
+        toast('Tópico criado!', 'success');
+        window.location.href = '/forum-post.html?id=' + data.id;
+      } catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+    }
+  </script>
+</body>
+</html>

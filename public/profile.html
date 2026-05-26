@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Perfil - AdultHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .profile-header { background: var(--bg2); padding: 40px; border-radius: 20px; border: 1px solid var(--border); display: flex; gap: 30px; align-items: center; }
+    .profile-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid var(--accent); }
+    .stats-container { display: flex; gap: 20px; margin-top: 15px; }
+    .stat-box { text-align: center; background: var(--bg3); padding: 10px 20px; border-radius: 12px; }
+    .stat-num { display: block; font-size: 20px; font-weight: 800; color: var(--accent); }
+    .profile-tabs { display: flex; gap: 10px; margin: 25px 0; border-bottom: 1px solid var(--border); }
+    .tab-btn { padding: 12px 20px; cursor: pointer; border-bottom: 2px solid transparent; }
+    .tab-btn.active { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+  <div class="container">
+    <div id="profile-content">
+      <div style="text-align:center; padding:100px;">Carregando perfil...</div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let profileData = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderNavbar();
+      const { u } = getParams();
+      const username = u || (API.getUser() ? API.getUser().username : null);
+      
+      if (!username) return showModal('login');
+
+      try {
+        profileData = await API.get('/api/users/' + username);
+        renderProfile();
+      } catch(e) {
+        document.getElementById('profile-content').innerHTML = `<h2>Erro: ${e.message}</h2>`;
+      }
+    });
+
+ function renderProfile() {
+      const p = profileData;
+      const content = document.getElementById('profile-content');
+
+      if (p.is_private && !p.isOwner) {
+        content.innerHTML = `
+          <div class="profile-header">
+            <div class="profile-avatar" style="display:flex; align-items:center; justify-content:center; font-size:40px; background:var(--bg3)">🔒</div>
+            <div><h1>@${p.username}</h1><p>Este perfil é privado.</p></div>
+          </div>`;
+        return;
+      }
+
+      content.innerHTML = `
+        <div class="profile-header">
+          <img src="${p.avatar || '/img/default-avatar.png'}" class="profile-avatar">
+          <div style="flex:1">
+            <div style="display:flex; justify-content:space-between; align-items:center">
+              <h1>@${p.username}</h1>
+              ${p.isOwner ? `<button class="btn btn-ghost" onclick="window.location.href='/settings.html'">⚙️ Configurações</button>` : ''}
+            </div>
+            <p style="margin: 10px 0; color:var(--text2)">${p.bio || 'Sem bio disponível.'}</p>
+            <div class="stats-container">
+              <div class="stat-box"><span class="stat-num">${p.video_count}</span> Uploads</div>
+              <div class="stat-box"><span class="stat-num">${p.post_count}</span> Posts</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-tabs">
+          <div class="tab-btn active" onclick="showTab('uploads')">Vídeos</div>
+          <div class="tab-btn" onclick="showTab('likes')">Curtidas</div>
+          ${p.isOwner ? `
+            <div class="tab-btn" onclick="showTab('favorites')">⭐ Favoritos</div>
+            <div class="tab-btn" onclick="showTab('history')">🕒 Histórico</div>
+          ` : ''}
+        </div>
+
+        <div id="tab-content" class="video-grid">
+          ${p.videos.map(renderVideoCard).join('')}
+        </div>
+      `;
+    }
+
+    async function showTab(type) {
+      const grid = document.getElementById('tab-content');
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        if (b.innerText.toLowerCase().includes(type) || 
+           (type === 'history' && b.innerText.includes('Histórico')) ||
+           (type === 'favorites' && b.innerText.includes('Favoritos'))) {
+          b.classList.add('active');
+        }
+      });
+      
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3)">Carregando...</div>';
+
+      try {
+        if (type === 'uploads') {
+          grid.innerHTML = profileData.videos.length ? profileData.videos.map(renderVideoCard).join('') : '<p>Nenhum vídeo postado.</p>';
+        } else if (type === 'likes') {
+          grid.innerHTML = profileData.likedVideos.length ? profileData.likedVideos.map(renderVideoCard).join('') : '<p>Nenhuma curtida pública.</p>';
+        } else if (type === 'favorites') {
+          const favs = await API.get('/api/me/favorites');
+          grid.innerHTML = favs.length ? favs.map(renderVideoCard).join('') : '<p>Você não possui vídeos favoritos.</p>';
+        } else if (type === 'history') {
+          const hist = await API.get('/api/me/history');
+          grid.innerHTML = hist.length ? hist.map(renderVideoCard).join('') : '<p>Seu histórico está vazio.</p>';
+        }
+      } catch (e) {
+        grid.innerHTML = `<p style="color: #ff4444;">Erro ao carregar vídeos.</p>`;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload - AdultHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+  <div class="container" style="max-width:760px">
+    <div class="page-header">
+      <h1>Fazer Upload</h1>
+      <p>Envie seu conteúdo para a plataforma</p>
+    </div>
+
+    <div id="auth-gate" style="display:none;text-align:center;padding:60px">
+      <div style="font-size:48px;margin-bottom:16px">🔒</div>
+      <h3 style="font-size:20px;margin-bottom:8px">Login necessário</h3>
+      <p style="color:var(--text2);margin-bottom:20px">Faça login para enviar conteúdo</p>
+      <button class="btn btn-primary" onclick="showModal('login')">Entrar</button>
+    </div>
+
+    <div id="upload-section">
+      <!-- Drop Zone -->
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" accept="video/*" style="display:none" onchange="handleFile(this.files[0])">
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-bottom:14px">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+        <h3>Arraste ou clique para selecionar o vídeo</h3>
+        <p>MP4, WebM, MKV, AVI, MOV · Máximo 2GB</p>
+        <div id="file-name" style="margin-top:12px;color:var(--accent);font-weight:600;display:none"></div>
+      </div>
+
+      <!-- Progress bar (hidden by default) -->
+      <div id="upload-progress-wrap" style="display:none;margin-top:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:6px">
+          <span>Enviando...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="upload-progress">
+          <div class="upload-progress-bar" id="progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="upload-form" id="upload-form">
+        <div class="form-group">
+          <label>Título *</label>
+          <input type="text" id="title" placeholder="Título do vídeo" maxlength="200">
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea id="description" placeholder="Descrição opcional..."></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label>Categoria</label>
+            <select id="category">
+              <option value="Geral">Geral</option>
+              <option value="Amateur">Amateur</option>
+              <option value="Solo">Solo</option>
+              <option value="Casal">Casal</option>
+              <option value="Grupo">Grupo</option>
+              <option value="Lésbico">Lésbico</option>
+              <option value="Gay">Gay</option>
+              <option value="Trans">Trans</option>
+              <option value="BDSM">BDSM</option>
+              <option value="Fetiche">Fetiche</option>
+            </select>
+          </div>
+          <div class="form-group">
+          <label>Visibilidade</label>
+          <select id="is_private">
+            <option value="0">🌐 Público (Aparece na Home)</option>
+            <option value="2">🔗 Não Listado (Apenas com link)</option>
+            <option value="1">🔒 Privado (Apenas você pode ver)</option>
+          </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Tags</label>
+          <input type="text" id="tags" placeholder="ex: amador, brasil, morena">
+          <div class="tags-hint">Separe as tags com vírgula</div>
+        </div>
+        <div class="form-group">
+          <label>Thumbnail (opcional)</label>
+          <input type="file" id="thumbnail" accept="image/*" style="cursor:pointer" onchange="clearAutoThumb()">
+          <div class="tags-hint">Faça upload de uma imagem ou escolha um quadro gerado do vídeo:</div>
+          
+          <!-- Contêiner para as 3 thumbnails automáticas -->
+          <div id="auto-thumbs-container" style="display:flex; gap:12px; margin-top:14px; display:none;"></div>
+        </div>
+        <button class="btn btn-primary" id="upload-btn" onclick="startUpload()" style="width:100%;justify-content:center;padding:14px">
+          ⬆️ Enviar Vídeo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderNavbar();
+      if (!API.isLoggedIn()) {
+        document.getElementById('auth-gate').style.display = 'block';
+        document.getElementById('upload-section').style.display = 'none';
+      }
+      setupDragDrop();
+    });
+
+    function setupDragDrop() {
+      const zone = document.getElementById('drop-zone');
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragging'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('dragging'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('dragging');
+        if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+      });
+    }
+    let selectedFile = null;
+    let selectedAutoThumb = null; // Guarda a thumb automática escolhida
+
+    // Atualize a sua função handleFile existente:
+    function handleFile(file) {
+      if (!file || !file.type.startsWith('video/')) {
+        toast('Selecione um arquivo de vídeo válido', 'error');
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024 * 1024) {
+        toast('Arquivo muito grande. Máximo 2GB.', 'error');
+        return;
+      }
+      selectedFile = file;
+      const nameEl = document.getElementById('file-name');
+      nameEl.textContent = `✓ ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+      nameEl.style.display = 'block';
+      if (!document.getElementById('title').value) {
+        document.getElementById('title').value = file.name.replace(/\.[^/.]+$/, '');
+      }
+
+      // NOVO: Chama a função para gerar as thumbs
+      generateThumbnails(file);
+    }
+
+    // --- NOVAS FUNÇÕES PARA AS THUMBNAILS ---
+
+    async function generateThumbnails(file) {
+      const container = document.getElementById('auto-thumbs-container');
+      container.innerHTML = '<span style="color:var(--text3);font-size:13px">Gerando miniaturas...</span>';
+      container.style.display = 'flex';
+
+      // Cria um player de vídeo invisível só para ler o arquivo local
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(file);
+      await new Promise(resolve => { video.onloadedmetadata = resolve; });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      // Pega 3 momentos do vídeo: 25%, 50% e 75%
+      const times = [video.duration * 0.25, video.duration * 0.5, video.duration * 0.75];
+      const dataUrls = [];
+
+      for (let t of times) {
+        video.currentTime = t;
+        await new Promise(resolve => {
+          video.onseeked = resolve;
+          setTimeout(resolve, 1500); // Segurança caso o navegador não consiga pular
+        });
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        dataUrls.push(canvas.toDataURL('image/jpeg', 0.8)); // Converte para JPG
+      }
+      URL.revokeObjectURL(video.src); // Limpa a memória
+
+      // Desenha as 3 opções na tela
+      container.innerHTML = '';
+      dataUrls.forEach((url) => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.style = 'width: 140px; aspect-ratio: 16/9; object-fit: contain; background-color: #000; border-radius: var(--radius); cursor: pointer; border: 2px solid transparent; transition: all 0.2s;';
+        img.onclick = () => selectAutoThumb(url, img);
+        container.appendChild(img);
+      });
+    }
+
+    function selectAutoThumb(base64Url, imgElement) {
+      selectedAutoThumb = base64Url;
+      document.getElementById('thumbnail').value = ''; // Limpa o input manual
+      
+      const container = document.getElementById('auto-thumbs-container');
+      Array.from(container.children).forEach(child => child.style.borderColor = 'transparent');
+      imgElement.style.borderColor = 'var(--accent)'; // Destaca a escolhida com a cor do site
+    }
+
+    function clearAutoThumb() {
+      selectedAutoThumb = null;
+      const container = document.getElementById('auto-thumbs-container');
+      Array.from(container.children).forEach(child => child.style.borderColor = 'transparent');
+    }
+
+    function dataURItoBlob(dataURI) {
+      const byteString = atob(dataURI.split(',')[1]);
+      const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      return new Blob([ab], {type: mimeString});
+    }
+
+    // --- FIM DAS NOVAS FUNÇÕES ---
+
+    async function startUpload() {
+      if (!selectedFile) {
+        toast('Selecione um vídeo primeiro', 'error');
+        return;
+      }
+      const title = document.getElementById('title').value.trim();
+      if (!title) {
+        toast('Título é obrigatório', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('upload-btn');
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+      document.getElementById('upload-progress-wrap').style.display = 'block';
+
+      const formData = new FormData();
+      formData.append('video', selectedFile);
+      formData.append('title', title);
+      formData.append('description', document.getElementById('description').value);
+      formData.append('category', document.getElementById('category').value);
+      formData.append('tags', document.getElementById('tags').value);
+      formData.append('is_private', document.getElementById('is_private').value);
+
+      const thumbFile = document.getElementById('thumbnail').files[0];
+      if (thumbFile) {
+        // Se ele fez upload manual de uma imagem
+        formData.append('thumbnail_file', thumbFile);
+      } else if (selectedAutoThumb) {
+        // Se ele clicou em uma das fotos automáticas, converte pra arquivo e envia
+        formData.append('thumbnail_file', dataURItoBlob(selectedAutoThumb), 'auto-thumb.jpg');
+      }
+
+      // XHR para acompanhar progresso
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/videos/upload');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + API.getToken());
+
+      xhr.upload.addEventListener('progress', e => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          document.getElementById('progress-bar').style.width = pct + '%';
+          document.getElementById('progress-pct').textContent = pct + '%';
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            toast('Vídeo enviado com sucesso!', 'success');
+            setTimeout(() => window.location.href = '/watch.html?id=' + data.id, 1000);
+          } else {
+            toast(data.error || 'Erro ao enviar', 'error');
+            btn.disabled = false;
+            btn.textContent = '⬆️ Enviar Vídeo';
+          }
+        } catch { toast('Erro inesperado', 'error'); }
+      });
+
+      xhr.addEventListener('error', () => {
+        toast('Erro de conexão', 'error');
+        btn.disabled = false;
+        btn.textContent = '⬆️ Enviar Vídeo';
+      });
+
+      xhr.send(formData);
+    }
+    
+  </script>
+</body>
+</html>

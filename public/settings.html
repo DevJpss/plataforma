@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Configurações - AdultHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .settings-card { background: var(--bg2); padding: 30px; border-radius: 15px; border: 1px solid var(--border); margin-top: 20px; }
+    .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
+    .settings-row:last-child { border: none; }
+    .toggle-group { display: flex; flex-direction: column; gap: 4px; }
+    .current-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid var(--accent); }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+  <div class="container" style="max-width: 800px;">
+    <div class="page-header">
+      <h1>Configurações da Conta</h1>
+      <p>Gerencie sua privacidade e informações de perfil.</p>
+    </div>
+
+    <div class="settings-card">
+      <h3>Identidade</h3>
+      <div class="settings-row">
+        <div class="toggle-group">
+          <strong>Foto de Perfil</strong>
+          <span>Escolha uma imagem para representar você.</span>
+        </div>
+        <div style="text-align: right;">
+          <img id="preview-avatar" src="" class="current-avatar">
+          <input type="file" id="input-avatar" accept="image/*" style="display:block; font-size: 12px;">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 20px;">
+        <label>Bio</label>
+        <textarea id="input-bio" placeholder="Conte algo sobre você..." style="min-height: 100px;"></textarea>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <h3>Privacidade</h3>
+      <div class="settings-row">
+        <div class="toggle-group">
+          <strong>Perfil Privado</strong>
+          <span>Apenas você poderá ver seus uploads e posts.</span>
+        </div>
+        <input type="checkbox" id="check-private" style="width: 20px; height: 20px;">
+      </div>
+
+      <div class="settings-row">
+        <div class="toggle-group">
+          <strong>Mostrar Curtidas</strong>
+          <span>Permitir que outros usuários vejam o que você curtiu.</span>
+        </div>
+        <input type="checkbox" id="check-likes" style="width: 20px; height: 20px;">
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+      <button class="btn btn-primary" onclick="saveSettings()">Salvar Alterações</button>
+      <button class="btn btn-ghost" onclick="window.history.back()">Cancelar</button>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderNavbar();
+      if (!API.isLoggedIn()) window.location.href = '/';
+      
+      try {
+        const user = await API.get('/api/me');
+        document.getElementById('input-bio').value = user.bio || '';
+        document.getElementById('check-private').checked = !!user.is_private;
+        document.getElementById('check-likes').checked = !!user.show_likes;
+        document.getElementById('preview-avatar').src = user.avatar || '/img/default-avatar.png';
+      } catch(e) { toast(e.message, 'error'); }
+    });
+
+    async function saveSettings() {
+      const formData = new FormData();
+      formData.append('bio', document.getElementById('input-bio').value);
+      formData.append('is_private', document.getElementById('check-private').checked ? '1' : '0');
+      formData.append('show_likes', document.getElementById('check-likes').checked ? '1' : '0');
+      
+      const avatarFile = document.getElementById('input-avatar').files[0];
+      if (avatarFile) formData.append('avatar', avatarFile);
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/me', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: formData
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Erro desconhecido');
+        toast('Configurações salvas!', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  </script>
+</body>
+</html>

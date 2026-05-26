@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tópico - AdultHub Fórum</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+  <div id="ad-header" style="margin:0 auto;max-width:860px;padding:8px 16px;text-align:center"></div>
+  <div class="container" style="max-width:860px">
+    <div id="post-content">
+      <div style="text-align:center;padding:60px;color:var(--text3)">Carregando...</div>
+    </div>
+  </div>
+  <div id="ad-footer" style="margin:16px auto;max-width:860px;padding:8px 16px;text-align:center"></div>
+  <script src="/js/app.js"></script>
+  <script>
+    let postData = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderNavbar('forum');
+      const { id } = getParams();
+      if (!id) return window.location.href = '/forum.html';
+       try {
+        postData = await API.get('/api/forum/posts/' + id);
+        document.title = postData.title + ' - Fórum AdultHub';
+        renderPost();
+        setTimeout(injectAllAds, 100);
+      } catch(e) {
+        document.getElementById('post-content').innerHTML = `<div style="text-align:center;padding:60px;color:var(--text3)">Post não encontrado</div>`;
+      }
+    });
+
+    function renderPost() {
+      const p = postData;
+      const user = API.getUser();
+      const isDeleted = p.is_deleted === 1;
+      document.getElementById('post-content').innerHTML = `
+        <div style="margin:24px 0 8px">
+          <a href="/forum.html" style="color:var(--text3);font-size:13px">← Voltar ao fórum</a>
+          <span style="color:var(--text3);font-size:13px;margin:0 8px">/</span>
+          <span style="color:var(--text3);font-size:13px">${p.category_name}</span>
+        </div>
+
+        ${p.pinned ? '<div style="color:var(--warning);font-weight:700;margin-bottom:12px">📌 Este post está fixado</div>' : ''}
+        ${p.locked ? '<div style="color:var(--error);font-weight:700;margin-bottom:12px">🔒 Este tópico está trancado</div>' : ''}
+
+        <!-- Original Post -->
+        <div class="forum-full-post ${isDeleted ? 'post-deleted' : ''}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px">
+          <div style="font-family:var(--font-display);font-size:24px;font-weight:700;margin-bottom:16px;letter-spacing:-0.3px">${p.title}</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+            <div class="comment-avatar" style="width:40px;height:40px">
+              ${p.avatar ? `<img src="${p.avatar}">` : avatarLetter(p.username)}
+            </div>
+            <div>
+              <a href="/profile.html?u=${p.username}" style="font-weight:700">@${p.username}</a>
+              <div style="font-size:12px;color:var(--text3)">${timeAgo(p.created_at)} · ${formatViews(p.views)} views</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+              ${user && !isDeleted ? `
+                <button class="btn btn-ghost btn-sm" onclick="showForumReportModal('post', ${p.id})" title="Denunciar">🚩</button>
+              ` : ''}
+              ${p.can_edit ? `
+                <button class="btn btn-ghost btn-sm" onclick="showForumEditModal('post', ${p.id}, ${JSON.stringify(p.title).replace(/"/g,'&quot;')}, ${JSON.stringify(p.content).replace(/"/g,'&quot;')})" title="Editar">✏️</button>
+              ` : ''}
+              ${p.can_delete ? `
+                <button class="btn btn-ghost btn-sm" style="border-color:#ff3d5a;color:#ff3d5a" onclick="deleteForumItem('post', ${p.id})" title="Deletar">🗑️</button>
+              ` : ''}
+            </div>
+          </div>
+          <div style="color:var(--text2);line-height:1.8">${renderForumContent(p.content)}</div>
+          
+          ${!isDeleted ? `
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+            ${renderReactions(p.reactions, p.my_reactions, 'post', p.id)}
+          </div>
+          ` : ''}
+        </div>
+
+        <!-- Replies -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:700">${p.replies ? p.replies.length : 0} respostas</div>
+        </div>
+        <div id="replies-list">
+          ${renderReplies(p.replies || [])}
+        </div>
+
+        <input type="file" id="forum-image-input" accept="image/*" style="display:none" onchange="uploadForumImage(this, 'reply-input')">
+
+        <!-- Reply form -->
+        ${user && !isDeleted ? (
+          (() => {
+            const isModOrAdmin = user && (user.role === 'admin' || user.role === 'mod');
+            const canReply = !p.locked || isModOrAdmin;
+            if (canReply) {
+              return `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:20px">
+          ${p.locked ? '<div style="color:var(--warning);font-weight:700;margin-bottom:12px">⚠️ Respondendo como moderador (tópico trancado)</div>' : ''}
+          <div style="font-weight:700;margin-bottom:12px">Sua resposta</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="insertFormat('reply-input','**','**','negrito')" title="Negrito">B</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="insertFormat('reply-input','*','*','itálico')" title="Itálico">I</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="insertLink('reply-input')" title="Link">🔗 Link</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('forum-image-input').click()" title="Inserir imagem">🖼️ Imagem</button>
+          </div>
+          <textarea id="reply-input" style="min-height:140px;font-family:monospace;font-size:13px;line-height:1.6" placeholder="Escreva sua resposta...
+
+**negrito**  *itálico*
+[texto](https://link.com)
+![descrição](https://imagem.com)"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+            <div style="font-size:11px;color:var(--text3)">
+              Dicas: **negrito** *itálico* [texto](url) ![img](url)
+            </div>
+            <button class="btn btn-primary" onclick="postReply()">Responder</button>
+          </div>
+        </div>`;
+            } else {
+              return `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:20px;text-align:center;color:var(--text3)">
+          Este tópico está trancado e não aceita novas respostas.
+        </div>`;
+            }
+          })()
+        ) : isDeleted ? `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:20px;text-align:center;color:var(--text3)">
+          Este tópico foi deletado e não aceita mais respostas.
+        </div>
+        ` : `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:20px;text-align:center">
+          <p style="color:var(--text2)"><a href="#" onclick="showModal('login')">Faça login</a> para responder</p>
+        </div>
+        `}
+      `;
+    }
+
+    function renderReplies(replies) {
+      const user = API.getUser();
+      if (!replies.length) return `<p style="color:var(--text3);font-size:13px;margin-bottom:16px">Sem respostas ainda. Seja o primeiro!</p>`;
+      return replies.map((r, i) => {
+        const isDeleted = r.is_deleted === 1;
+        return `
+        <div class="forum-reply-card ${isDeleted ? 'reply-deleted' : ''}" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:28px;height:28px;background:var(--bg4);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);overflow:hidden">
+              ${r.avatar ? `<img src="${r.avatar}" style="width:100%;height:100%;object-fit:cover">` : avatarLetter(r.username)}
+            </div>
+            <div>
+              <a href="/profile.html?u=${r.username}" style="font-weight:600;font-size:13px">@${r.username}</a>
+              <span style="color:var(--text3);font-size:12px;margin-left:8px">${timeAgo(r.created_at)}</span>
+            </div>
+            <div style="margin-left:auto;color:var(--text3);font-size:12px;font-weight:600">#${i+1}</div>
+            <div style="display:flex;gap:4px;margin-left:4px">
+              ${user && !isDeleted ? `
+                <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="showForumReportModal('reply', ${r.id})" title="Denunciar">🚩</button>
+              ` : ''}
+              ${r.can_edit ? `
+                <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="showForumEditModal('reply', ${r.id}, '', ${JSON.stringify(r.content).replace(/"/g,'&quot;')}, ${postData.id})" title="Editar">✏️</button>
+              ` : ''}
+              ${r.can_delete ? `
+                <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;border-color:#ff3d5a;color:#ff3d5a" onclick="deleteForumItem('reply', ${r.id}, ${postData.id})" title="Deletar">🗑️</button>
+              ` : ''}
+            </div>
+          </div>
+          <div style="color:var(--text2);font-size:14px;line-height:1.7">${renderForumContent(r.content)}</div>
+          
+          ${!isDeleted ? `
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            ${renderReactions(r.reactions, r.my_reactions, 'reply', r.id)}
+          </div>
+          ` : ''}
+        </div>
+      `}).join('');
+    }
+
+    async function postReply() {
+      const input = document.getElementById('reply-input');
+      const content = input.value.trim();
+      if (!content) return toast('Escreva algo antes de responder', 'error');
+      try {
+        await API.post(`/api/forum/posts/${postData.id}/replies`, { content });
+        input.value = '';
+        postData = await API.get('/api/forum/posts/' + postData.id);
+        document.getElementById('replies-list').innerHTML = renderReplies(postData.replies || []);
+        toast('Resposta enviada!', 'success');
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  </script>
+</body>
+</html>

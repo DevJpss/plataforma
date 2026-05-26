@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assistindo - AdultHub</title>
+  <link rel="stylesheet" href="/css/style.css">
+  
+  <!-- Bibliotecas Externas -->
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  
+  <style>
+    .plyr { width: 100%; height: 100%; border-radius: var(--radius); overflow: hidden; }
+    .player-wrap video { object-fit: contain !important; background: #000; }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar"></nav>
+  <div id="ad-header" style="margin:0 auto;max-width:1200px;padding:8px 16px;text-align:center"></div>
+  
+  <div class="container">
+    <div class="player-layout" id="player-layout">
+      <div style="color:var(--text3);padding:60px;text-align:center">Carregando vídeo...</div>
+    </div>
+  </div>
+  <div id="ad-footer" style="margin:16px auto;max-width:1200px;padding:8px 16px;text-align:center"></div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let videoData = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderNavbar('videos');
+      const { id } = getParams();
+      if (!id) return window.location.href = '/videos.html';
+      
+       try {
+        videoData = await API.get('/api/videos/' + id);
+        document.title = videoData.title + ' - AdultHub';
+        renderPlayer();
+        loadRelated();
+        setTimeout(injectAllAds, 100);
+      } catch(e) {
+        console.error("Erro ao carregar vídeo:", e);
+        document.getElementById('player-layout').innerHTML = 
+          `<div style="padding:60px;text-align:center;color:var(--text3)">Vídeo não encontrado</div>`;
+      }
+    });
+
+    function renderPlayer() {
+      const v = videoData;
+      const filename = v.filename.split('/').pop();
+      const layout = document.getElementById('player-layout');
+      
+      layout.innerHTML = `
+        <div>
+          <div class="player-wrap">
+            <video id="video-player" playsinline controls data-poster="${v.thumbnail||''}"></video>
+          </div>
+          <div class="player-info">
+            <div class="player-title">${v.title}</div>
+            
+            <div class="player-actions">
+              <button class="action-btn" id="like-btn" onclick="react('like')">👍 <span id="like-count">${formatViews(v.likes)}</span></button>
+              <button class="action-btn" id="dislike-btn" onclick="react('dislike')">👎 <span id="dislike-count">${formatViews(v.dislikes)}</span></button>
+              <button class="action-btn" id="fav-btn" onclick="toggleFavorite()" style="color: ${v.is_favorite ? 'var(--accent)' : 'inherit'}">
+                ${v.is_favorite ? '⭐ Favorito' : '☆ Favoritar'}
+              </button>
+              <button class="action-btn" style="color: #ffaa00;" onclick="reportVideo()">🚩 Denunciar</button>
+              
+              ${v.isOwner ? `
+                <button class="action-btn" onclick="openEditModal()">✏️ Editar</button>
+                <button class="action-btn" style="color: #ff4444;" onclick="deleteVideo()">🗑️ Excluir</button>
+              ` : ''}
+              
+              <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text3)">
+                ${formatViews(v.views)} views · ${timeAgo(v.created_at)}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+              <div class="comment-avatar" onclick="window.location.href='/profile.html?u=${v.username}'" style="cursor:pointer;width:44px;height:44px;font-size:18px">
+                ${v.avatar ? `<img src="${v.avatar}">` : avatarLetter(v.username)}
+              </div>
+              <div>
+                <a href="/profile.html?u=${v.username}" style="font-weight:700;font-size:15px">@${v.username}</a>
+                <p style="color:var(--text2);font-size:13px;margin-top:3px">${v.description || ''}</p>
+              </div>
+            </div>
+            <div class="comments-section">
+              <h3>Comentários</h3>
+              <div id="comment-form" style="display:flex;gap:10px;margin-bottom:20px;align-items:flex-start">
+                <div class="comment-avatar" style="width:36px;height:36px;font-size:15px;flex-shrink:0">
+                  ${API.getUser() ? avatarLetter(API.getUser().username) : '?'}
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                  <textarea id="comment-input" placeholder="${API.isLoggedIn() ? 'Adicione um comentário...' : 'Faça login para comentar'}" ${!API.isLoggedIn() ? 'disabled' : ''} style="min-height:72px;resize:none"></textarea>
+                  ${API.isLoggedIn() ? `<div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" onclick="submitComment()">Comentar</button></div>` : `<p style="font-size:13px;color:var(--text3)"><a href="#" onclick="showModal('login')">Faça login</a> para comentar</p>`}
+                </div>
+              </div>
+              <div id="comments-list">${renderComments(v.comments || [])}</div>
+            </div>
+          </div>
+        </div>
+         <div>
+          <div id="ad-video" style="margin-bottom:16px"></div>
+          <h3 style="font-size:15px;font-weight:700;margin-bottom:14px">Vídeos relacionados</h3>
+          <div id="related-videos"></div>
+        </div>
+      `;
+
+      const videoElement = document.getElementById('video-player');
+      const fallbackSrc = `/api/stream/${filename}`;
+
+      const plyrOptions = {
+        controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
+        settings: ['quality', 'speed'],
+        i18n: { speed: 'Velocidade', normal: 'Normal', quality: 'Qualidade', qualityLabel: { 0: 'Auto' } }
+      };
+
+      if (v.has_hls && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(v.hls_url);
+        hls.attachMedia(videoElement);
+        window.hls = hls;
+
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          const availableQualities = hls.levels.map((l) => l.height);
+          availableQualities.unshift(0); 
+
+          plyrOptions.quality = {
+            default: 0,
+            options: availableQualities,
+            forced: true,
+            onChange: (q) => updateQuality(q)
+          };
+          new Plyr(videoElement, plyrOptions);
+        });
+      } else {
+        videoElement.src = fallbackSrc;
+        new Plyr(videoElement, plyrOptions);
+      }
+    }
+
+    function updateQuality(newQuality) {
+      if (!window.hls) return;
+
+      if (newQuality === 0) {
+        window.hls.currentLevel = -1; // Auto
+      } else {
+        const idx = window.hls.levels.findIndex(l => l.height === newQuality);
+        if (idx !== -1) window.hls.nextLevel = idx; // nextLevel troca suavemente sem travar
+      }
+    }
+
+    function renderComments(comments) {
+      if (!comments.length) return `<p style="color:var(--text3);font-size:13px">Nenhum comentário ainda.</p>`;
+      return comments.map(c => `
+        <div class="comment" style="display:flex;gap:10px;margin-bottom:12px">
+          <div class="comment-avatar" style="width:32px;height:32px;font-size:14px">
+            ${c.avatar ? `<img src="${c.avatar}">` : avatarLetter(c.username)}
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:13px">@${c.username}</div>
+            <div style="font-size:13px;color:var(--text2)">${c.content}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadRelated() {
+      try {
+        const related = await API.get('/api/videos?limit=8&sort=popular');
+        const el = document.getElementById('related-videos');
+        el.innerHTML = related.filter(vid => vid.id !== videoData.id).map(vid => `
+          <div class="sidebar-video" onclick="window.location.href='/watch.html?id=${vid.id}'">
+            <div class="sidebar-thumb">
+              ${vid.thumbnail ? `<img src="${vid.thumbnail}">` : '<div class="no-thumb">▶</div>'}
+            </div>
+            <div class="sidebar-info">
+              <div class="sidebar-title">${vid.title}</div>
+              <div class="sidebar-meta">@${vid.username} · ${formatViews(vid.views)} views</div>
+            </div>
+          </div>
+        `).join('');
+      } catch(e) {}
+    }
+
+    async function submitComment() {
+      const input = document.getElementById('comment-input');
+      const content = input.value.trim();
+      if (!content) return toast('Escreva algo antes de comentar', 'error');
+      try {
+        const newComment = await API.post(`/api/videos/${videoData.id}/comments`, { content });
+        input.value = '';
+        // Prepend new comment to list
+        const list = document.getElementById('comments-list');
+        const noComments = list.querySelector('p');
+        if (noComments) list.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'comment';
+        div.style = 'display:flex;gap:10px;margin-bottom:12px';
+        div.innerHTML = `
+          <div class="comment-avatar" style="width:32px;height:32px;font-size:14px">
+            ${newComment.avatar ? `<img src="${newComment.avatar}">` : avatarLetter(newComment.username)}
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:13px">@${newComment.username}</div>
+            <div style="font-size:13px;color:var(--text2)">${newComment.content}</div>
+          </div>`;
+        list.prepend(div);
+        toast('Comentário publicado!', 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    }
+
+    async function react(type) {
+      if (!API.isLoggedIn()) return showModal('login');
+      try {
+        await API.post(`/api/videos/${videoData.id}/like`, { type });
+        const data = await API.get('/api/videos/' + videoData.id);
+        document.getElementById('like-count').textContent = formatViews(data.likes);
+        document.getElementById('dislike-count').textContent = formatViews(data.dislikes);
+      } catch(e) { toast(e.message, 'error'); }
+    }
+    // --- FUNÇÕES DE GERENCIAMENTO DO VÍDEO ---
+
+    function openEditModal() {
+      const v = videoData;
+      let overlay = document.getElementById('edit-video-modal');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'edit-video-modal';
+        overlay.className = 'modal-overlay';
+        document.body.appendChild(overlay);
+      }
+      overlay.innerHTML = `
+        <div class="modal" style="position:relative">
+          <button class="modal-close" onclick="document.getElementById('edit-video-modal').style.display='none'">×</button>
+          <h2>Editar Vídeo</h2>
+          <div class="form-group"><label>Título</label><input type="text" id="edit-title" value="${v.title}"></div>
+          <div class="form-group"><label>Descrição</label><textarea id="edit-description">${v.description || ''}</textarea></div>
+          <div class="form-group"><label>Tags (separadas por vírgula)</label><input type="text" id="edit-tags" value="${v.tags || ''}"></div>
+          <div class="form-group">
+            <label>Visibilidade</label>
+            <select id="edit-privacy">
+              <option value="0" ${v.is_private === 0 ? 'selected' : ''}>🌐 Público</option>
+              <option value="2" ${v.is_private === 2 ? 'selected' : ''}>🔗 Não Listado</option>
+              <option value="1" ${v.is_private === 1 ? 'selected' : ''}>🔒 Privado</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="submitVideoEdit()" style="width:100%;margin-top:10px;">Salvar Alterações</button>
+        </div>
+      `;
+      overlay.style.display = 'flex';
+    }
+
+    async function submitVideoEdit() {
+      const payload = {
+        title: document.getElementById('edit-title').value,
+        description: document.getElementById('edit-description').value,
+        tags: document.getElementById('edit-tags').value,
+        is_private: document.getElementById('edit-privacy').value,
+        category: videoData.category // Mantém a categoria original
+      };
+      try {
+        await API.put('/api/videos/' + videoData.id, payload);
+        toast('Vídeo atualizado!', 'success');
+        setTimeout(() => location.reload(), 800);
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function deleteVideo() {
+      if (!confirm("Tem certeza absoluta que deseja EXCLUIR este vídeo? Isso não pode ser desfeito.")) return;
+      try {
+        await API.delete('/api/videos/' + videoData.id);
+        toast('Vídeo excluído com sucesso.', 'success');
+        setTimeout(() => window.location.href = '/videos.html', 1000);
+      } catch (e) { toast(e.message, 'error'); }
+    }
+    async function reportVideo() {
+  if (!API.isLoggedIn()) return showModal('login');
+  const reason = prompt("Por qual motivo você está denunciando este vídeo? (ex: Falta de consentimento, violência, etc)");
+  if (!reason) return;
+  
+  try {
+    await API.post(`/api/videos/${videoData.id}/report`, { reason });
+    toast('Denúncia enviada à moderação.', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+async function toggleFavorite() {
+      if (!API.isLoggedIn()) return showModal('login');
+      try {
+        const res = await API.post(`/api/videos/${videoData.id}/favorite`);
+        videoData.is_favorite = res.is_favorite;
+        const btn = document.getElementById('fav-btn');
+        btn.innerHTML = res.is_favorite ? '⭐ Favorito' : '☆ Favoritar';
+        btn.style.color = res.is_favorite ? 'var(--accent)' : 'inherit';
+        toast(res.message, 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  </script>
+</body>
+</html>

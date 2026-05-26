@@ -1,0 +1,9 @@
+node_modules
+.git
+.env
+*.log
+database.db
+.DS_Store
+public/uploads/videos
+public/uploads/thumbnails
+public/uploads/forum

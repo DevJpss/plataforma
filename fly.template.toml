@@ -1,0 +1,25 @@
+app = "plataforma-adulta"
+primary_region = "gru"
+
+[build]
+  image = "node:20-alpine"
+
+[env]
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[mounts]]
+  source = "data"
+  destination = "/data"
+
+[[vm]]
+  memory = "256"
+  cpu_kind = "shared"
+  cpus = 1
