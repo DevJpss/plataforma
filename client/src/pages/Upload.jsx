@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
+import RevealText from '../components/RevealText';
 
 const CATEGORIES = [
   'Geral', 'Amador', 'Profissional', 'Animação', 'Hentai', 'Fetiche', 'Lésbico', 'Gay', 'Trans', 'Casais', 'Masturbação', 'Sexo Oral', 'Anal', 'Grupo', 'Orgía', 'BDSM', 'Roleplay', 'Cosplay', 'Soft', 'Hardcore'
@@ -64,9 +67,9 @@ export default function Upload() {
   return (
     <div className="page upload-page">
       <div className="page-header">
-        <h1>Enviar Vídeo</h1>
+        <RevealText as="h1">Enviar Vídeo</RevealText>
       </div>
-      <div className="upload-form-container">
+      <motion.div className="upload-form-container" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
         <form className="upload-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Vídeo *</label>
@@ -134,11 +137,11 @@ export default function Upload() {
             </label>
           </div>
 
-          <button className="btn btn-primary btn-lg btn-full" disabled={uploading}>
+          <MagneticBtn className="btn btn-primary btn-lg btn-full" disabled={uploading}>
             {uploading ? 'Enviando...' : 'Enviar Vídeo'}
-          </button>
+          </MagneticBtn>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

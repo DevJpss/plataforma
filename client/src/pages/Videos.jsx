@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import VideoCard from '../components/VideoCard';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
+import RevealText from '../components/RevealText';
 
 const CATEGORIES = [
   'Geral', 'Amador', 'Profissional', 'Animação', 'Hentai', 'Fetiche', 'Lésbico', 'Gay', 'Trans', 'Casais', 'Masturbação', 'Sexo Oral', 'Anal', 'Grupo', 'Orgía', 'BDSM', 'Roleplay', 'Cosplay', 'Soft', 'Hardcore'
@@ -42,7 +45,7 @@ export default function Videos() {
   return (
     <div className="page videos-page">
       <div className="page-header">
-        <h1>Vídeos</h1>
+        <RevealText as="h1">Vídeos</RevealText>
         <div className="page-controls">
           <form className="search-bar" onSubmit={handleSearch}>
             <input
@@ -51,7 +54,7 @@ export default function Videos() {
               value={inputSearch}
               onChange={(e) => setInputSearch(e.target.value)}
             />
-            <button type="submit" className="btn btn-primary btn-sm">Buscar</button>
+            <MagneticBtn type="submit" className="btn btn-primary btn-sm">Buscar</MagneticBtn>
           </form>
           <select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }}>
             <option value="newest">Mais Recentes</option>
@@ -93,17 +96,23 @@ export default function Videos() {
           <p>Tente outros filtros ou busque por outro termo</p>
         </div>
       ) : (
-        <div className="video-grid">
+        <motion.div
+          className="video-grid"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        >
           {videos.map((v) => (
             <VideoCard key={v.id} video={v} />
           ))}
-        </div>
+        </motion.div>
       )}
 
       <div className="pagination">
-        <button className="btn btn-ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
+        <MagneticBtn className="btn btn-ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</MagneticBtn>
         <span className="page-info">Página {page}</span>
-        <button className="btn btn-ghost" disabled={videos.length < 24} onClick={() => setPage(page + 1)}>Próxima</button>
+        <MagneticBtn className="btn btn-ghost" disabled={videos.length < 24} onClick={() => setPage(page + 1)}>Próxima</MagneticBtn>
       </div>
     </div>
   );

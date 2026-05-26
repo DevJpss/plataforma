@@ -4,6 +4,8 @@ import { api, formatViews, formatDuration, timeAgo } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import VideoCard from '../components/VideoCard';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
 
 const ALLOWED_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👀', '💯', '🙄', '🤔', '😈', '🥵'];
 
@@ -92,7 +94,7 @@ export default function Watch() {
 
   return (
     <div className="page watch-page">
-      <div className="watch-layout">
+      <motion.div className="watch-layout" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
         <div className="watch-main">
           <div className="player-wrapper">
             {video.has_hls ? (
@@ -117,15 +119,15 @@ export default function Watch() {
                 <span>{timeAgo(video.created_at)}</span>
               </div>
               <div className="video-actions">
-                <button className="action-btn" onClick={() => handleLike('like')}>
+                <MagneticBtn className="action-btn" onClick={() => handleLike('like')}>
                   👍 {video.likes || 0}
-                </button>
-                <button className="action-btn" onClick={() => handleLike('dislike')}>
+                </MagneticBtn>
+                <MagneticBtn className="action-btn" onClick={() => handleLike('dislike')}>
                   👎 {video.dislikes || 0}
-                </button>
-                <button className={`action-btn ${video.is_favorite ? 'active' : ''}`} onClick={handleFavorite}>
+                </MagneticBtn>
+                <MagneticBtn className={`action-btn ${video.is_favorite ? 'active' : ''}`} onClick={handleFavorite}>
                   {video.is_favorite ? '❤️' : '🤍'} Favorito
-                </button>
+                </MagneticBtn>
               </div>
             </div>
 
@@ -160,7 +162,7 @@ export default function Watch() {
                   onChange={(e) => setComment(e.target.value)}
                   maxLength={1000}
                 />
-                <button className="btn btn-primary" disabled={!comment.trim()}>Enviar</button>
+                <MagneticBtn className="btn btn-primary" disabled={!comment.trim()}>Enviar</MagneticBtn>
               </form>
             ) : (
               <p className="comment-login-msg">Faça login para comentar</p>
@@ -206,7 +208,7 @@ export default function Watch() {
             ))}
           </div>
         </aside>
-      </div>
+      </motion.div>
     </div>
   );
 }

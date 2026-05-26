@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { api, timeAgo } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
+import RevealText from '../components/RevealText';
 
 export default function Lives() {
   const { user } = useAuth();
@@ -36,9 +39,9 @@ export default function Lives() {
   return (
     <div className="page lives-page">
       <div className="page-header">
-        <h1>🔴 Lives</h1>
+        <RevealText as="h1">🔴 Lives</RevealText>
         {user && (
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>Criar Live</button>
+          <MagneticBtn className="btn btn-primary" onClick={() => setShowCreate(true)}>Criar Live</MagneticBtn>
         )}
       </div>
 
@@ -52,7 +55,7 @@ export default function Lives() {
                 <label>Título da Live</label>
                 <input type="text" value={liveTitle} onChange={(e) => setLiveTitle(e.target.value)} required />
               </div>
-              <button className="btn btn-primary btn-full">Criar Live</button>
+              <MagneticBtn className="btn btn-primary btn-full">Criar Live</MagneticBtn>
             </form>
           </div>
         </div>
@@ -75,7 +78,7 @@ export default function Lives() {
           <p>Ninguém está transmitindo ao vivo agora</p>
         </div>
       ) : (
-        <div className="video-grid">
+        <motion.div className="video-grid" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
           {lives.map((l) => (
             <div key={l.id} className="live-card">
               <div className="live-thumb">
@@ -93,7 +96,7 @@ export default function Lives() {
               </div>
             </div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );

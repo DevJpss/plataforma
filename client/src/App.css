@@ -97,10 +97,11 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--primary), var(--accent2)); border-radius: 3px; opacity: 0.6; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary-hover); }
+::-webkit-scrollbar-corner { background: transparent; }
 ::selection { background: var(--primary); color: #fff; }
 
 /* ─── LAYOUT ─────────────────────────────────────────────── */
@@ -2307,6 +2308,44 @@ input:focus, textarea:focus, select:focus {
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.95) translateY(10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ─── 404 ────────────────────────────────────────── */
+
+.not-found-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.not-found-content {
+  text-align: center;
+  max-width: 420px;
+}
+
+.not-found-code {
+  font-size: 96px;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--primary), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -4px;
+  margin-bottom: 8px;
+}
+
+.not-found-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.not-found-desc {
+  color: var(--text2);
+  margin-bottom: 28px;
+  line-height: 1.6;
 }
 
 

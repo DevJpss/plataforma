@@ -14,6 +14,13 @@ import ForumPost from './pages/ForumPost';
 import Settings from './pages/Settings';
 import Lives from './pages/Lives';
 import Terms, { Privacy, DMCA } from './pages/Terms';
+import NotFound from './pages/NotFound';
+
+const pageVariants = {
+  initial: { opacity: 0, y: 24, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: [0.4, 0, 0.2, 1] } },
+  exit: { opacity: 0, y: -16, scale: 0.98, transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] } },
+};
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -23,10 +30,10 @@ function AnimatedRoutes() {
       <motion.main
         key={location.pathname}
         className="main-content"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
       >
         <Routes location={location}>
           <Route path="/" element={<Home />} />
@@ -41,6 +48,7 @@ function AnimatedRoutes() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/dmca" element={<DMCA />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </motion.main>
     </AnimatePresence>

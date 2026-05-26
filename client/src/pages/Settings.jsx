@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
+import RevealText from '../components/RevealText';
 
 export default function Settings() {
   const { user, setUser } = useAuth();
@@ -47,9 +50,9 @@ export default function Settings() {
   return (
     <div className="page settings-page">
       <div className="page-header">
-        <h1>Configurações</h1>
+        <RevealText as="h1">Configurações</RevealText>
       </div>
-      <div className="settings-form-container">
+      <motion.div className="settings-form-container" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
         <form className="settings-form" onSubmit={handleSave}>
           <div className="form-group">
             <label>Avatar</label>
@@ -78,11 +81,11 @@ export default function Settings() {
             </label>
           </div>
 
-          <button className="btn btn-primary btn-full" disabled={saving}>
+          <MagneticBtn className="btn btn-primary btn-full" disabled={saving}>
             {saving ? 'Salvando...' : 'Salvar'}
-          </button>
+          </MagneticBtn>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

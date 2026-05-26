@@ -7,6 +7,11 @@ export default function Particles() {
   const canvasRef = useRef(null);
   const mouse = useMousePosition();
   const particlesRef = useRef([]);
+  const mouseRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    mouseRef.current = mouse;
+  }, [mouse]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -40,6 +45,7 @@ export default function Particles() {
     const p = particlesRef.current;
 
     const animate = () => {
+      const { x: mx, y: my } = mouseRef.current;
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
       p.forEach((pt) => {
@@ -51,8 +57,8 @@ export default function Particles() {
         if (pt.y < 0) pt.y = window.innerHeight;
         if (pt.y > window.innerHeight) pt.y = 0;
 
-        const dx = mouse.x - pt.x;
-        const dy = mouse.y - pt.y;
+        const dx = mx - pt.x;
+        const dy = my - pt.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 150) {
           pt.vx -= dx * 0.0003;
@@ -92,7 +98,7 @@ export default function Particles() {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', resize);
     };
-  }, [mouse]);
+  }, []);
 
   return (
     <canvas

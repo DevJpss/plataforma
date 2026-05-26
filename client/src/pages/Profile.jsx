@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api, timeAgo } from '../utils/api';
 import VideoCard from '../components/VideoCard';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
 
 export default function Profile() {
   const { username } = useParams();
@@ -57,7 +59,7 @@ export default function Profile() {
 
   return (
     <div className="page profile-page">
-      <div className="profile-header">
+      <motion.div className="profile-header" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
         <div className="profile-avatar-lg">
           {profile.avatar ? <img src={profile.avatar} alt="" /> : <div className="avatar-placeholder-lg">{profile.username?.[0]}</div>}
         </div>
@@ -70,18 +72,18 @@ export default function Profile() {
           <span className="dot" />
           <span>Membro desde {timeAgo(profile.created_at)}</span>
         </div>
-      </div>
+      </motion.div>
 
       <div className="profile-tabs">
-        <button className={`profile-tab ${tab === 'videos' ? 'active' : ''}`} onClick={() => setTab('videos')}>Vídeos</button>
-        <button className={`profile-tab ${tab === 'liked' ? 'active' : ''}`} onClick={() => setTab('liked')}>Curtidos</button>
+        <MagneticBtn className={`profile-tab ${tab === 'videos' ? 'active' : ''}`} onClick={() => setTab('videos')}>Vídeos</MagneticBtn>
+        <MagneticBtn className={`profile-tab ${tab === 'liked' ? 'active' : ''}`} onClick={() => setTab('liked')}>Curtidos</MagneticBtn>
       </div>
 
       {tab === 'videos' && (
         profile.videos?.length > 0 ? (
-          <div className="video-grid">
+          <motion.div className="video-grid" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
             {profile.videos.map((v) => <VideoCard key={v.id} video={v} />)}
-          </div>
+          </motion.div>
         ) : (
           <div className="empty-state">
             <div className="empty-icon">📹</div>
@@ -92,9 +94,9 @@ export default function Profile() {
 
       {tab === 'liked' && (
         profile.likedVideos?.length > 0 ? (
-          <div className="video-grid">
+          <motion.div className="video-grid" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
             {profile.likedVideos.map((v) => <VideoCard key={v.id} video={v} />)}
-          </div>
+          </motion.div>
         ) : (
           <div className="empty-state">
             <div className="empty-icon">👍</div>

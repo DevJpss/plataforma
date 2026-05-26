@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { api, timeAgo } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
 
 const ALLOWED_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👀', '💯', '🙄', '🤔', '😈', '🥵'];
 
@@ -88,7 +90,7 @@ export default function ForumPost() {
     <div className="page forum-post-page">
       <Link to="/forum" className="back-link">← Voltar ao Fórum</Link>
 
-      <div className="forum-post-detail">
+      <motion.div className="forum-post-detail" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
         <div className="forum-post-header">
           <h1>{post.title}</h1>
           <div className="forum-post-meta">
@@ -137,10 +139,10 @@ export default function ForumPost() {
             </div>
           )}
           {post.can_delete && (
-            <button className="btn btn-ghost btn-sm" onClick={() => handleDelete('post', post.id)}>Deletar</button>
+            <MagneticBtn className="btn btn-ghost btn-sm" onClick={() => handleDelete('post', post.id)}>Deletar</MagneticBtn>
           )}
         </div>
-      </div>
+        </motion.div>
 
       <div className="forum-replies-section">
         <h3>{post.replies?.length || 0} Respostas</h3>
@@ -153,7 +155,7 @@ export default function ForumPost() {
               placeholder="Escreva sua resposta..."
               rows={4}
             />
-            <button className="btn btn-primary" disabled={!replyContent.trim()}>Responder</button>
+            <MagneticBtn className="btn btn-primary" disabled={!replyContent.trim()}>Responder</MagneticBtn>
           </form>
         ) : (
           <p className="reply-login-msg">Faça login para responder</p>
@@ -198,7 +200,7 @@ export default function ForumPost() {
                   </div>
                 )}
                 {r.can_delete && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => handleDelete('reply', r.id)}>Deletar</button>
+                  <MagneticBtn className="btn btn-ghost btn-sm" onClick={() => handleDelete('reply', r.id)}>Deletar</MagneticBtn>
                 )}
               </div>
             </div>

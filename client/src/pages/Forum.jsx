@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { api, timeAgo } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MagneticBtn from '../components/MagneticBtn';
+import { motion } from 'framer-motion';
+import RevealText from '../components/RevealText';
 
 export default function Forum() {
   const { user } = useAuth();
@@ -58,10 +61,10 @@ export default function Forum() {
   return (
     <div className="page forum-page">
       <div className="page-header">
-        <h1>Fórum</h1>
-        <button className="btn btn-primary" onClick={() => user ? setShowNewPost(true) : toast('Faça login', 'info')}>
+        <RevealText as="h1">Fórum</RevealText>
+        <MagneticBtn className="btn btn-primary" onClick={() => user ? setShowNewPost(true) : toast('Faça login', 'info')}>
           Novo Tópico
-        </button>
+        </MagneticBtn>
       </div>
 
       <div className="forum-categories">
@@ -99,8 +102,8 @@ export default function Forum() {
                 <textarea value={newPost.content} onChange={(e) => setNewPost({ ...newPost, content: e.target.value })} style={{ minHeight: 200 }} required />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowNewPost(false)}>Cancelar</button>
-                <button className="btn btn-primary">Publicar</button>
+                <MagneticBtn type="button" className="btn btn-ghost" onClick={() => setShowNewPost(false)}>Cancelar</MagneticBtn>
+                <MagneticBtn className="btn btn-primary">Publicar</MagneticBtn>
               </div>
             </form>
           </div>
@@ -123,7 +126,7 @@ export default function Forum() {
           <p>Seja o primeiro a postar!</p>
         </div>
       ) : (
-        <div className="forum-list">
+        <motion.div className="forum-list" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
           {posts.map((p) => (
             <div key={p.id} className={`forum-post-card ${p.pinned ? 'pinned' : ''}`}>
               {p.pinned ? <span className="pinned-badge">📌 Fixado</span> : null}
@@ -143,7 +146,7 @@ export default function Forum() {
               </Link>
             </div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );
