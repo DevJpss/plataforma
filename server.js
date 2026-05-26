@@ -74,7 +74,9 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' })); // Protege contra payloads JSON gigantes
-app.use(express.static('public'));
+// Serve React built files (SPA)
+app.use(express.static('client/dist'));
+// Fallback: serve index.html for all non-API routes (client-side routing)
 app.use('/uploads', express.static('public/uploads'));
 
 // ─── RATE LIMITING (ANTI BRUTE-FORCE / DDOS) ──────────────────────────────────
@@ -1375,6 +1377,11 @@ io.on('connection', (socket) => {
       io.to(`live_${socket.liveId}`).emit('viewer_count', chatRooms[socket.liveId]);
     }
   });
+});
+
+// ─── SPA FALLBACK ─────────────────────────────────────────────
+app.get(/^\/(?!api|uploads|socket\.io|hls).*/, (req, res) => {
+  res.sendFile(__dirname + '/client/dist/index.html');
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────
