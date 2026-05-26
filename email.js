@@ -1,12 +1,12 @@
 const nodemailer = require('nodemailer');
 
-let transporter = null;
+let transporterPromise = null;
 
-function getTransporter() {
-  if (transporter) return transporter;
+async function getTransporter() {
+  if (transporterPromise) return transporterPromise;
 
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    transporter = nodemailer.createTransport({
+    transporterPromise = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true',
@@ -15,26 +15,27 @@ function getTransporter() {
         pass: process.env.SMTP_PASS,
       },
     });
-  } else {
-    console.log('📧 SMTP não configurado. Usando Ethereal (modo dev)');
-    nodemailer.createTestAccount().then((account) => {
-      transporter = nodemailer.createTransport({
-        host: account.smtp.host,
-        port: account.smtp.port,
-        secure: account.smtp.secure,
-        auth: { user: account.user, pass: account.pass },
-      });
-      console.log('📧 Ethereal email: ' + account.user);
-    });
+    return transporterPromise;
   }
-  return transporter;
+
+  console.log('📧 SMTP não configurado. Criando conta Ethereal...');
+  const account = await nodemailer.createTestAccount();
+  transporterPromise = nodemailer.createTransport({
+    host: account.smtp.host,
+    port: account.smtp.port,
+    secure: account.smtp.secure,
+    auth: { user: account.user, pass: account.pass },
+  });
+  console.log('📧 Ethereal email: ' + account.user);
+  return transporterPromise;
 }
 
 async function sendVerificationEmail(email, token, username) {
   const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
   const link = `${baseUrl}/verify-email?token=${token}`;
 
-  const info = await getTransporter().sendMail({
+  const transporter = await getTransporter();
+  const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"AdultHub" <noreply@adulthub.com>',
     to: email,
     subject: 'Confirme seu email - AdultHub',
@@ -77,7 +78,8 @@ async function sendPasswordResetEmail(email, token, username) {
   const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
   const link = `${baseUrl}/reset-password?token=${token}`;
 
-  const info = await getTransporter().sendMail({
+  const transporter = await getTransporter();
+  const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"AdultHub" <noreply@adulthub.com>',
     to: email,
     subject: 'Redefinir senha - AdultHub',

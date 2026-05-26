@@ -56,6 +56,7 @@ export default function MagneticBtn({ children, to, href, className = '', ...pro
   return (
     <button
       ref={ref}
+      type="submit"
       className={className}
       style={style}
       onMouseMove={handleMouse}
