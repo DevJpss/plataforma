@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,7 @@ export default function Upload() {
   const [video, setVideo] = useState(null);
   const [thumbnail, setThumbnail] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const videoInputRef = useRef(null);
 
   if (!user) {
     return (
@@ -73,8 +74,9 @@ export default function Upload() {
         <form className="upload-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Vídeo *</label>
-            <div className="file-dropzone">
+            <div className="file-dropzone" onClick={() => videoInputRef.current?.click()}>
               <input
+                ref={videoInputRef}
                 type="file"
                 accept="video/mp4,video/webm,video/x-matroska"
                 onChange={(e) => setVideo(e.target.files[0])}
