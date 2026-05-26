@@ -71,8 +71,12 @@ export function timeAgo(dateStr) {
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d atrás`;
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mes atrás`;
-  return `${Math.floor(months / 12)}a atrás`;
+  if (months < 1) return `${days}d atrás`;
+  if (months === 1) return `1 mês atrás`;
+  if (months < 12) return `${months} meses atrás`;
+  const years = Math.floor(months / 12);
+  if (years === 1) return `1 ano atrás`;
+  return `${years} anos atrás`;
 }
 
 export function logout() {

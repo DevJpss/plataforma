@@ -19,6 +19,8 @@ export default function Videos() {
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [inputSearch, setInputSearch] = useState(searchParams.get('search') || '');
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const totalPages = Math.ceil(total / 24);
 
   const fetchVideos = () => {
     setLoading(true);
@@ -26,7 +28,7 @@ export default function Videos() {
     if (category) params.set('category', category);
     if (search) params.set('search', search);
     api.get(`/api/videos?${params}`)
-      .then(setVideos)
+      .then((data) => { setVideos(data.videos || data); setTotal(data.total || 0); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
@@ -112,7 +114,7 @@ export default function Videos() {
       <div className="pagination">
         <MagneticBtn className="btn btn-ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</MagneticBtn>
         <span className="page-info">Página {page}</span>
-        <MagneticBtn className="btn btn-ghost" disabled={videos.length < 24} onClick={() => setPage(page + 1)}>Próxima</MagneticBtn>
+        <MagneticBtn className="btn btn-ghost" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Próxima</MagneticBtn>
       </div>
     </div>
   );

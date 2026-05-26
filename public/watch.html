@@ -171,7 +171,8 @@
 
     async function loadRelated() {
       try {
-        const related = await API.get('/api/videos?limit=8&sort=popular');
+        const cat = videoData.category ? '&category=' + encodeURIComponent(videoData.category) : '';
+        const related = await API.get('/api/videos?limit=8' + cat);
         const el = document.getElementById('related-videos');
         el.innerHTML = related.filter(vid => vid.id !== videoData.id).map(vid => `
           <div class="sidebar-video" onclick="window.location.href='/watch.html?id=${vid.id}'">
@@ -271,7 +272,7 @@
     }
 
     async function deleteVideo() {
-      if (!confirm("Tem certeza absoluta que deseja EXCLUIR este vídeo? Isso não pode ser desfeito.")) return;
+      if (!await showConfirm("Tem certeza absoluta que deseja EXCLUIR este vídeo? Isso não pode ser desfeito.")) return;
       try {
         await API.delete('/api/videos/' + videoData.id);
         toast('Vídeo excluído com sucesso.', 'success');
@@ -280,13 +281,20 @@
     }
     async function reportVideo() {
   if (!API.isLoggedIn()) return showModal('login');
-  const reason = prompt("Por qual motivo você está denunciando este vídeo? (ex: Falta de consentimento, violência, etc)");
-  if (!reason) return;
-  
-  try {
-    await API.post(`/api/videos/${videoData.id}/report`, { reason });
-    toast('Denúncia enviada à moderação.', 'success');
-  } catch(e) { toast(e.message, 'error'); }
+  showModal({
+    title: 'Denunciar Vídeo',
+    content: `<div class="form-group"><label>Motivo</label><textarea id="report-reason-input" style="min-height:100px" placeholder="Por qual motivo você está denunciando este vídeo? (ex: Falta de consentimento, violência, etc)"></textarea></div>`,
+    confirmText: 'Denunciar',
+    cancelText: 'Cancelar',
+    onConfirm: async () => {
+      const reason = document.getElementById('report-reason-input')?.value?.trim();
+      if (!reason) return toast('Descreva o motivo', 'error');
+      try {
+        await API.post(`/api/videos/${videoData.id}/report`, { reason });
+        toast('Denúncia enviada à moderação.', 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  });
 }
 async function toggleFavorite() {
       if (!API.isLoggedIn()) return showModal('login');

@@ -209,7 +209,7 @@
     }
 
     function goToContent(type, id) {
-      if (type === 'video') window.location.href = '/watch.html?v=' + id;
+      if (type === 'video') window.location.href = '/watch.html?id=' + id;
       else if (type === 'post') window.location.href = '/forum-post.html?id=' + id;
       else if (type === 'reply') window.location.href = '/forum-post.html?id=' + id;
     }
@@ -239,8 +239,16 @@
     }
 
     function promptBan(id) {
-      const reason = prompt('Motivo do banimento (opcional):');
-      if (reason !== null) toggleBan(id, true, reason);
+      showModal({
+        title: 'Banir Usuário',
+        content: `<div class="form-group"><label>Motivo do banimento (opcional)</label><textarea id="ban-reason-input" style="min-height:80px" placeholder="Descreva o motivo..."></textarea></div>`,
+        confirmText: 'Banir',
+        cancelText: 'Cancelar',
+        onConfirm: () => {
+          const reason = document.getElementById('ban-reason-input')?.value?.trim() || '';
+          toggleBan(id, true, reason);
+        }
+      });
     }
 
     async function searchUsers() {

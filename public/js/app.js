@@ -124,8 +124,12 @@ function timeAgo(dateStr) {
   if (diff < 3600) return Math.floor(diff / 60) + 'min atrás';
   if (diff < 86400) return Math.floor(diff / 3600) + 'h atrás';
   if (diff < 2592000) return Math.floor(diff / 86400) + 'd atrás';
-  if (diff < 31536000) return Math.floor(diff / 2592000) + 'mes atrás';
-  return Math.floor(diff / 31536000) + 'a atrás';
+  const months = Math.floor(diff / 2592000);
+  if (months === 1) return '1 mês atrás';
+  if (diff < 31536000) return months + ' meses atrás';
+  const years = Math.floor(diff / 31536000);
+  if (years === 1) return '1 ano atrás';
+  return years + ' anos atrás';
 }
 
 function formatDuration(secs) {
@@ -182,15 +186,32 @@ function insertFormat(textareaId, before, after, placeholder) {
 function insertLink(textareaId) {
   const ta = document.getElementById(textareaId);
   if (!ta) return;
-  const url = prompt('Digite a URL:', 'https://');
-  if (!url || url === 'https://') return;
   const start = ta.selectionStart;
   const end = ta.selectionEnd;
   const selected = ta.value.substring(start, end);
-  const linkText = selected || prompt('Texto do link (opcional):') || url;
-  const markdown = `[${linkText}](${url})`;
-  ta.value = ta.value.substring(0, start) + markdown + ta.value.substring(end);
-  ta.focus();
+  showModal({
+    title: 'Inserir Link',
+    content: `
+      <div class="form-group">
+        <label>URL</label>
+        <input type="text" id="link-url" value="https://" placeholder="https://..." />
+      </div>
+      <div class="form-group">
+        <label>Texto do link (opcional)</label>
+        <input type="text" id="link-text" value="${escapeHtml(selected)}" placeholder="texto visível" />
+      </div>
+    `,
+    confirmText: 'Inserir',
+    cancelText: 'Cancelar',
+    onConfirm: () => {
+      const url = document.getElementById('link-url')?.value?.trim();
+      if (!url || url === 'https://') return toast('Insira uma URL válida', 'error');
+      const linkText = document.getElementById('link-text')?.value?.trim() || url;
+      const markdown = `[${linkText}](${url})`;
+      ta.value = ta.value.substring(0, start) + markdown + ta.value.substring(end);
+      ta.focus();
+    }
+  });
 }
 
 async function uploadForumImage(input, textareaId) {
@@ -259,23 +280,68 @@ function renderNavbar(activePage = '') {
 
 // ─── AUTH MODAL ───────────────────────────────────────────────────────────────
 
-function showModal(tab = 'login') {
-  let overlay = document.getElementById('auth-modal');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'auth-modal';
+function showModal(opts) {
+  if (typeof opts === 'string') {
+    let overlay = document.getElementById('auth-modal');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'auth-modal';
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal" style="position:relative">
+          <button class="modal-close" onclick="closeModal()">×</button>
+          <div id="modal-content"></div>
+        </div>
+      `;
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+    renderModal(opts);
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="${opts.wide ? 'max-width:560px' : ''}">
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      <h3 style="margin-bottom:16px">${opts.title}</h3>
+      ${opts.content}
+      <div class="modal-actions" style="margin-top:20px">
+        ${opts.cancelText ? `<button class="btn btn-ghost" id="modal-cancel">${opts.cancelText}</button>` : ''}
+        <button class="btn btn-primary" id="modal-confirm">${opts.confirmText || 'OK'}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#modal-confirm')?.addEventListener('click', () => { opts.onConfirm?.(); overlay.remove(); });
+  overlay.querySelector('#modal-cancel')?.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  return overlay;
+}
+
+function showConfirm(msg) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
-      <div class="modal" style="position:relative">
-        <button class="modal-close" onclick="closeModal()">×</button>
-        <div id="modal-content"></div>
+      <div class="modal">
+        <button class="modal-close" id="confirm-close">×</button>
+        <h3 style="margin-bottom:16px">Confirmação</h3>
+        <p style="color:var(--text2)">${msg}</p>
+        <div class="modal-actions" style="margin-top:20px">
+          <button class="btn btn-ghost" id="confirm-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="confirm-ok">Sim</button>
+        </div>
       </div>
     `;
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
     document.body.appendChild(overlay);
-  }
-  overlay.style.display = 'flex';
-  renderModal(tab);
+    const done = (result) => { overlay.remove(); resolve(result); };
+    overlay.querySelector('#confirm-ok').addEventListener('click', () => done(true));
+    overlay.querySelector('#confirm-cancel').addEventListener('click', () => done(false));
+    overlay.querySelector('#confirm-close').addEventListener('click', () => done(false));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) done(false); });
+  });
 }
 
 function closeModal() {
@@ -344,7 +410,7 @@ async function doLogin() {
     API.setAuth(data.token, data.user);
     closeModal();
     toast('Bem-vindo, ' + data.user.username + '!', 'success');
-    setTimeout(() => location.reload(), 800);
+    window.location.href = '/';
   } catch(e) { showModalError(e.message); }
 }
 
@@ -357,7 +423,7 @@ async function doRegister() {
     API.setAuth(data.token, data.user);
     closeModal();
     toast('Conta criada! Bem-vindo, ' + data.user.username + '!', 'success');
-    setTimeout(() => location.reload(), 800);
+    window.location.href = '/';
   } catch(e) { showModalError(e.message); }
 }
 
@@ -429,7 +495,18 @@ async function toggleReaction(targetType, targetId, emoji) {
       ? `/api/forum/posts/${targetId}/react`
       : `/api/forum/replies/${targetId}/react`;
     await API.post(endpoint, { emoji });
-    location.reload();
+    const btn = Array.from(document.querySelectorAll('.reaction-btn')).find(b => {
+      const onclick = b.getAttribute('onclick') || '';
+      return onclick.includes(`'${targetType}'`) && onclick.includes(`${targetId}`) && onclick.includes(`'${emoji}'`);
+    });
+    if (btn) {
+      btn.classList.toggle('active');
+      const countEl = btn.querySelector('.reaction-count');
+      if (countEl) {
+        const current = parseInt(countEl.textContent) || 0;
+        countEl.textContent = btn.classList.contains('active') ? current + 1 : Math.max(0, current - 1);
+      }
+    }
   } catch(e) { toast(e.message, 'error'); }
 }
 
@@ -517,7 +594,6 @@ function showForumEditModal(type, id, currentTitle, currentContent, postId) {
       
       modal.remove();
       toast('Salvo!', 'success');
-      location.reload();
     } catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
   };
   
@@ -574,7 +650,7 @@ async function deleteForumItem(type, id, postId) {
     ? 'Tem certeza que quer deletar este post? As respostas serão mantidas.'
     : 'Tem certeza que quer deletar esta resposta?';
   
-  if (!confirm(confirmMsg)) return;
+  if (!await showConfirm(confirmMsg)) return;
   try {
     const endpoint = type === 'post' 
       ? `/api/forum/posts/${id}`
@@ -582,7 +658,10 @@ async function deleteForumItem(type, id, postId) {
     await API.delete(endpoint);
     toast('Deletado!', 'success');
     if (type === 'post') window.location.href = '/forum.html';
-    else location.reload();
+    else {
+      const btn = document.querySelector(`button[onclick*="deleteForumItem('reply', ${id},"]`);
+      if (btn) btn.closest('.forum-reply-card')?.remove();
+    }
   } catch(e) { toast(e.message, 'error'); }
 }
 

@@ -34,7 +34,7 @@ export default function Home() {
 
   useEffect(() => {
     api.get('/api/videos?limit=24')
-      .then(setVideos)
+      .then((data) => setVideos(data.videos || data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

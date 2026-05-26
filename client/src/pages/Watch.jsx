@@ -20,16 +20,20 @@ export default function Watch() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      api.get(`/api/videos/${id}`),
-      api.get('/api/videos?limit=12')
-    ])
-      .then(([v, r]) => {
+    (async () => {
+      try {
+        const v = await api.get(`/api/videos/${id}`);
         setVideo(v);
-        setRelated(r.filter((x) => x.id !== v.id).slice(0, 12));
-      })
-      .catch(() => toast('Erro ao carregar vídeo', 'error'))
-      .finally(() => setLoading(false));
+        const cat = v.category ? `&category=${encodeURIComponent(v.category)}` : '';
+        const r = await api.get(`/api/videos?limit=12${cat}`);
+        const list = r.videos || r;
+        setRelated(list.filter((x) => x.id !== v.id).slice(0, 12));
+      } catch (e) {
+        toast('Erro ao carregar vídeo', 'error');
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [id]);
 
   const handleLike = async (type) => {

@@ -9,6 +9,12 @@
     .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
     .settings-row:last-child { border: none; }
     .toggle-group { display: flex; flex-direction: column; gap: 4px; }
+    .toggle-switch { position:relative; width:44px; height:24px; flex-shrink:0; cursor:pointer; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; top:0; left:0; right:0; bottom:0; background:var(--bg4); border-radius:24px; transition:0.25s; }
+    .toggle-slider::before { content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:0.25s; }
+    .toggle-switch input:checked + .toggle-slider { background:var(--accent); }
+    .toggle-switch input:checked + .toggle-slider::before { transform:translateX(20px); }
     .current-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid var(--accent); }
   </style>
 </head>
@@ -46,7 +52,10 @@
           <strong>Perfil Privado</strong>
           <span>Apenas você poderá ver seus uploads e posts.</span>
         </div>
-        <input type="checkbox" id="check-private" style="width: 20px; height: 20px;">
+        <label class="toggle-switch">
+          <input type="checkbox" id="check-private">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
 
       <div class="settings-row">
@@ -54,7 +63,10 @@
           <strong>Mostrar Curtidas</strong>
           <span>Permitir que outros usuários vejam o que você curtiu.</span>
         </div>
-        <input type="checkbox" id="check-likes" style="width: 20px; height: 20px;">
+        <label class="toggle-switch">
+          <input type="checkbox" id="check-likes">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
     </div>
 

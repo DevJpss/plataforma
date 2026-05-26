@@ -42,13 +42,13 @@
         </div>
         <div style="background:var(--bg3);border-radius:var(--radius);padding:16px">
           <div style="font-size:24px;margin-bottom:8px">2️⃣</div>
-          <div style="font-weight:700;margin-bottom:4px">Configure o OBS</div>
-          <div style="font-size:13px;color:var(--text2)">Use a RTMP URL e Stream Key gerados</div>
+          <div style="font-weight:700;margin-bottom:4px">Copie os dados</div>
+          <div style="font-size:13px;color:var(--text2)">Copie a RTMP URL e a Stream Key geradas</div>
         </div>
         <div style="background:var(--bg3);border-radius:var(--radius);padding:16px">
           <div style="font-size:24px;margin-bottom:8px">3️⃣</div>
-          <div style="font-weight:700;margin-bottom:4px">Instale node-media-server</div>
-          <div style="font-size:13px;color:var(--text2)">npm install node-media-server no servidor</div>
+          <div style="font-weight:700;margin-bottom:4px">Configure seu programa de streaming</div>
+          <div style="font-size:13px;color:var(--text2)">Use a RTMP URL e Stream Key no OBS, Streamlabs ou similar</div>
         </div>
         <div style="background:var(--bg3);border-radius:var(--radius);padding:16px">
           <div style="font-size:24px;margin-bottom:8px">4️⃣</div>
@@ -65,14 +65,20 @@
       <button class="modal-close" onclick="document.getElementById('create-live-modal').style.display='none'">×</button>
       <h2>Iniciar Live</h2>
       <div id="live-result" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;font-size:13px">
-        <div style="font-weight:700;margin-bottom:10px;color:var(--success)">✓ Live criada! Configure o OBS:</div>
+        <div style="font-weight:700;margin-bottom:10px;color:var(--success)">✓ Live criada! Configure seu programa de streaming:</div>
         <div style="margin-bottom:8px">
           <div style="color:var(--text3);margin-bottom:3px">RTMP URL:</div>
-          <code id="rtmp-url" style="background:var(--bg4);padding:6px 10px;border-radius:4px;display:block;color:var(--accent);word-break:break-all;font-size:12px"></code>
+          <div style="display:flex;gap:6px">
+            <code id="rtmp-url" style="background:var(--bg4);padding:6px 10px;border-radius:4px;flex:1;color:var(--accent);word-break:break-all;font-size:12px"></code>
+            <button class="btn btn-ghost btn-sm" onclick="copyToClipboard('rtmp-url')">Copiar</button>
+          </div>
         </div>
         <div>
           <div style="color:var(--text3);margin-bottom:3px">Stream Key:</div>
-          <code id="stream-key" style="background:var(--bg4);padding:6px 10px;border-radius:4px;display:block;color:var(--accent);word-break:break-all;font-size:12px"></code>
+          <div style="display:flex;gap:6px">
+            <code id="stream-key" style="background:var(--bg4);padding:6px 10px;border-radius:4px;flex:1;color:var(--accent);word-break:break-all;font-size:12px"></code>
+            <button class="btn btn-ghost btn-sm" onclick="copyToClipboard('stream-key')">Copiar</button>
+          </div>
         </div>
       </div>
       <div id="live-form">
@@ -235,6 +241,12 @@
       document.getElementById('create-live-modal').style.display = 'flex';
       document.getElementById('live-result').style.display = 'none';
       document.getElementById('live-form').style.display = 'block';
+    }
+
+    function copyToClipboard(id) {
+      const text = document.getElementById(id)?.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => toast('Copiado!', 'success')).catch(() => toast('Erro ao copiar', 'error'));
     }
 
     async function createLive() {

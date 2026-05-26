@@ -331,7 +331,7 @@ function auth(req, res, next) {
     db.get('SELECT * FROM users WHERE id = ?', [decoded.id], (err, user) => {
       if (err || !user) return res.status(401).json({ error: 'Usuário não encontrado' });
       if (user.is_banned === 1) {
-        return res.status(403).json({ error: user.ban_reason ? 'Conta banida: ' + user.ban_reason : 'Conta banida' });
+        return res.status(403).json({ error: user.ban_reason ? 'Conta banida: ' + xss(user.ban_reason) : 'Conta banida' });
       }
       req.user = user;
       next();
@@ -415,6 +415,9 @@ const uploadMedia = multer({
       if (!ALLOWED_VIDEO_EXTS.includes(ext)) {
         return cb(new Error('Tipo de vídeo não permitido'));
       }
+      if (file.mimetype && !ALLOWED_VIDEO_MIMES.includes(file.mimetype)) {
+        return cb(new Error('MIME type de vídeo não permitido'));
+      }
       cb(null, true);
     } else {
       imageFileFilter(req, file, cb);
@@ -484,7 +487,7 @@ app.post('/api/login', authLimiter, (req, res) => {
     if (!user) return res.status(400).json({ error: 'Credenciais inválidas' });
     
     if (user.is_banned === 1) {
-      return res.status(403).json({ error: user.ban_reason ? 'Conta banida: ' + user.ban_reason : 'Conta banida' });
+      return res.status(403).json({ error: user.ban_reason ? 'Conta banida: ' + xss(user.ban_reason) : 'Conta banida' });
     }
     
     const valid = await bcrypt.compare(password, user.password);
@@ -675,16 +678,20 @@ if (category) { where.push('LOWER(v.category) = LOWER(?)'); params.push(category
   const orderMap = { newest: 'v.created_at DESC', popular: 'v.views DESC', liked: 'v.likes DESC' };
   const order = orderMap[sort] || 'v.created_at DESC';
   
+  const countSql = `SELECT COUNT(*) as total FROM videos v WHERE ${where.join(' AND ')}`;
   const sql = `SELECT v.*, u.username, u.avatar 
                FROM videos v
                LEFT JOIN users u ON v.user_id = u.id
                WHERE ${where.join(' AND ')}
                ORDER BY ${order} LIMIT ? OFFSET ?`;
                
-  db.all(sql, [...params, parseInt(limit), parseInt(offset)], (err, rows) => {
-    if (err) { console.error('❌ Erro SQL:', err.message); return res.status(500).json({ error: 'Erro ao buscar vídeos' }); }
-    console.log('📋 /api/videos retornou', rows?.length, 'vídeos');
-    res.json(rows || []);
+  db.get(countSql, params, (countErr, countRow) => {
+    if (countErr) { console.error('❌ Erro count:', countErr.message); }
+    db.all(sql, [...params, parseInt(limit), parseInt(offset)], (err, rows) => {
+      if (err) { console.error('❌ Erro SQL:', err.message); return res.status(500).json({ error: 'Erro ao buscar vídeos' }); }
+      console.log('📋 /api/videos retornou', rows?.length, 'vídeos');
+      res.json({ videos: rows || [], total: countRow?.total || 0, page: parseInt(page), limit: parseInt(limit) });
+    });
   });
 });
 
