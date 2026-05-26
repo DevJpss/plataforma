@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api, formatViews, formatDuration, timeAgo } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import VideoCard from '../components/VideoCard';
 import MagneticBtn from '../components/MagneticBtn';
+import Hls from 'hls.js';
 import { motion } from 'framer-motion';
 
 export default function Watch() {
@@ -20,6 +21,17 @@ export default function Watch() {
   const [playlists, setPlaylists] = useState([]);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (!video || !video.has_hls || !videoRef.current) return;
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(video.hls_url);
+      hls.attachMedia(videoRef.current);
+      return () => hls.destroy();
+    }
+  }, [video?.id, video?.has_hls]);
 
   const loadComments = async () => {
     try {
@@ -148,13 +160,11 @@ export default function Watch() {
       <motion.div className="watch-layout" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}>
         <div className="watch-main">
           <div className="player-wrapper">
-            {video.has_hls ? (
-              <video controls poster={video.thumbnail} className="video-player" autoPlay>
-                <source src={video.hls_url} type="application/x-mpegURL" />
-              </video>
-            ) : video.filename ? (
-              <video controls poster={video.thumbnail} className="video-player" autoPlay>
-                <source src={`/api/stream/${video.filename.replace('/uploads/videos/', '')}`} type="video/mp4" />
+            {video.filename ? (
+              <video ref={videoRef} controls poster={video.thumbnail} className="video-player" autoPlay>
+                {(!video.has_hls || !Hls.isSupported()) && (
+                  <source src={`/api/stream/${video.filename.replace('/uploads/videos/', '')}`} type="video/mp4" />
+                )}
               </video>
             ) : (
               <div className="no-video">Vídeo não disponível</div>
