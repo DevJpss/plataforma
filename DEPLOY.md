@@ -56,7 +56,7 @@ fly deploy
 ### Passo 4: Preencha:
 - **Name**: `seu-app`
 - **Region**: São Paulo (se disponível) ou Virginia
-- **Build Command**: `npm install`
+- **Build Command**: `cd client && npm install && npm run build && cd .. && npm install`
 - **Start Command**: `npm start`
 - **Plan**: Free
 
