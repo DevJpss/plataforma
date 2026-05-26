@@ -147,7 +147,7 @@ export default function Navbar() {
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
-      {user && user.email_verified === 0 && (
+      {user && !user.email_verified && (
         <div className="verify-banner">
           <span>📧 Verifique seu email para ativar sua conta.</span>
           <Link to="/settings" style={{ color: 'var(--primary)', fontWeight: 600, fontSize: 12 }}>

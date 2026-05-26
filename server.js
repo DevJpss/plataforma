@@ -931,7 +931,7 @@ app.delete('/api/videos/:id', auth, (req, res) => {
       db.run('DELETE FROM video_favorites WHERE video_id = ?', [video.id]);
       db.run('DELETE FROM video_history WHERE video_id = ?', [video.id]);
       db.run('DELETE FROM playlist_videos WHERE video_id = ?', [video.id]);
-      db.run('DELETE FROM reports WHERE video_id = ?', [video.id]);
+      db.run('DELETE FROM reports WHERE type = ? AND target_id = ?', ['video', video.id]);
       
       // Finalmente, apaga o vídeo em si
       db.run('DELETE FROM videos WHERE id = ?', [video.id], () => {

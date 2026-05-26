@@ -123,6 +123,7 @@ input:focus, textarea:focus, select:focus {
 .main-content {
   flex: 1;
   width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 24px;
   position: relative;
@@ -199,6 +200,7 @@ input:focus, textarea:focus, select:focus {
   position: relative;
   flex: 1;
   max-width: 400px;
+  min-width: 0;
 }
 
 .navbar-search input {
@@ -987,7 +989,7 @@ input:focus, textarea:focus, select:focus {
   border-radius: var(--radius);
 }
 
-.author-avatar img, .avatar-placeholder-sm {
+.author-avatar img, .author-avatar .avatar-placeholder-sm {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -1052,11 +1054,14 @@ input:focus, textarea:focus, select:focus {
   border-radius: var(--radius);
 }
 
+.comment-avatar {
+  flex-shrink: 0;
+}
+
 .comment-avatar img, .comment-avatar .avatar-placeholder-sm {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .comment-body {
@@ -1890,7 +1895,7 @@ input:focus, textarea:focus, select:focus {
   font-weight: 700;
 }
 
-.brand-icon {
+.footer-brand .brand-icon {
   font-size: 18px;
   color: var(--primary);
   animation: pulse 2s ease infinite;
@@ -2572,6 +2577,9 @@ input:focus, textarea:focus, select:focus {
   color: var(--text2);
   flex-wrap: wrap;
   text-align: center;
+  position: sticky;
+  top: 56px;
+  z-index: 99;
 }
 
 /* ─── FORM ERROR ──────────────────────────────────── */
@@ -2682,7 +2690,7 @@ input:focus, textarea:focus, select:focus {
 .playlist-select-btn {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 8px; padding: 10px 12px; cursor: pointer;
-  color: var(--text1); text-align: left; display: flex;
+  color: var(--text); text-align: left; display: flex;
   justify-content: space-between; align-items: center;
   transition: all 0.2s;
 }
@@ -2697,7 +2705,7 @@ input:focus, textarea:focus, select:focus {
   display: flex; gap: 8px; margin-bottom: 12px;
 }
 
-.new-playlist-form input { flex: 1; }
+.new-playlist-form input { flex: 1; min-width: 0; }
 
 /* ─── PLAYLIST GRID (perfil) ───────────────────────── */
 
@@ -2749,7 +2757,7 @@ input:focus, textarea:focus, select:focus {
 /* ─── MOBILE RESPONSIVO ────────────────────────────── */
 
 @media (max-width: 768px) {
-  .watch-layout { flex-direction: column; }
+  .watch-layout { display: flex; flex-direction: column; }
   .watch-sidebar { display: none; }
   .video-grid {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
